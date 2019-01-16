@@ -1,4 +1,4 @@
-walDIST_SUBDIRS = secp256k1
+FwalDIST_SUBDIRS = secp256k1
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS)
 CXXFLAGS += -std=c++0x
 
@@ -34,6 +34,9 @@ LIBBITCOIN_MULTICHAIN=multichain/libbitcoin_multichain.a
 LIBBITCOIN_UNIVALUE=univalue/libbitcoin_univalue.a
 LIBBITCOINQT=qt/libbitcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
+if !TARGET_WINDOWS
+LIBBITCOIN_V8=libbitcoin_v8.a
+endif
 
 $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
@@ -52,7 +55,9 @@ if ENABLE_WALLET
 BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
 EXTRA_LIBRARIES += libbitcoin_wallet.a
 endif
-
+if !TARGET_WINDOWS
+EXTRA_LIBRARIES += $(LIBBITCOIN_V8)
+endif
 if BUILD_BITCOIN_LIBS
 lib_LTLIBRARIES = libbitcoinconsensus.la
 LIBBITCOIN_CONSENSUS=libbitcoinconsensus.la
@@ -98,6 +103,7 @@ BITCOIN_CORE_H = \
   utils/core_io.h \
   wallet/crypter.h \
   wallet/db.h \
+  wallet/dbwrap.h \
   structs/hash.h \
   core/init.h \
   keys/key.h \
@@ -168,14 +174,6 @@ obj/build.h: FORCE
 	  $(abs_top_srcdir)
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
-V8_SOURCES = \
-  v8/v8isolatemanager.cpp \
-  v8/v8engine.cpp \
-  v8/v8filter.cpp \
-  v8/v8filterwatchdog.cpp \
-  v8/callbacks.cpp \
-  v8/v8utils.cpp
-
 # server: shared between bitcoind and bitcoin-qt
 libbitcoin_server_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS)
 libbitcoin_server_a_SOURCES = \
@@ -225,6 +223,7 @@ libbitcoin_server_a_SOURCES = \
 libbitcoin_wallet_a_CPPFLAGS = $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_SOURCES = \
   wallet/db.cpp \
+  wallet/dbwrap_com.cpp \
   wallet/crypter.cpp \
   rpc/rpcdump.cpp \
   rpc/rpcwallet.cpp \
@@ -421,17 +420,37 @@ V8_ROOT = $(top_builddir)/v8build/v8
 V8_INCLUDE = -I$(V8_ROOT)/include
 V8_LIB_DIR = $(V8_ROOT)/out.gn/x64.release/obj
 V8_LIBS = \
-    -L$(V8_LIB_DIR) -L$(V8_LIB_DIR)/third_party/icu \
-    -Wl,--start-group \
+    -L$(V8_LIB_DIR) -L$(V8_LIB_DIR)/third_party/icu
+if !TARGET_DARWIN
+V8_LIBS += \
+    -Wl,--start-group
+endif
+V8_LIBS += \
         -lv8_libbase \
         -lv8_libplatform \
         -lv8_base \
         -lv8_external_snapshot \
         -lv8_libsampler \
-        -lv8_data \
         -licuuc \
         -licui18n \
-    -lrt -ldl
+        -lv8_data \
+    -ldl
+if !TARGET_DARWIN
+V8_LIBS += \
+    -lrt
+endif
+
+libbitcoin_v8_a_SOURCES = \
+  v8/v8engine.cpp \
+  v8/v8filter.cpp \
+  v8/callbacks.cpp \
+  v8/v8json_spirit.cpp
+
+#if TARGET_WINDOWS
+#libbitcoin_v8_a_SOURCES += v8/callbacks_win.cpp v8/v8blob.dpp
+#endif
+
+libbitcoin_v8_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(V8_INCLUDE)
 
 # multichaind binary #
 multichaind_LDADD = \
@@ -440,26 +459,41 @@ multichaind_LDADD = \
   $(LIBBITCOIN_UNIVALUE) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_MULTICHAIN) \
-  $(LIBBITCOIN_V8DATA) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
+if TARGET_WINDOWS
+  multichaind_LDADD += $(top_builddir)/src/v8_win/build/Release/multichain-v8.lib
+else
+  multichaind_LDADD += $(LIBBITCOIN_V8)
+endif
+
 #if ENABLE_WALLET
 #multichaind_LDADD += libbitcoin_wallet.a
 #endif
-multichaind_SOURCES = multichain/multichaind.cpp rpc/rpclist.cpp chainparams/buildgenesis.cpp protocol/filter.cpp $(V8_SOURCES)
-#
+multichaind_SOURCES = \
+    multichain/multichaind.cpp \
+    rpc/rpclist.cpp \
+    chainparams/buildgenesis.cpp \
+    filters/filtercallback.cpp \
+    filters/watchdog.cpp \
+    json/json_spirit_writer.cpp
 
 if TARGET_WINDOWS
-multichaind_SOURCES += multichaind-res.rc
+multichaind_SOURCES += filters/filter_win.cpp multichaind-res.rc
+else
+multichaind_SOURCES += filters/filter.cpp
 endif
 
 multichaind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)
 multichaind_CPPFLAGS = $(BITCOIN_INCLUDES) $(V8_INCLUDE)
-multichaind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(V8_LIBS) -pthread
+multichaind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -pthread
+if !TARGET_WINDOWS
+multichaind_LDFLAGS += $(V8_LIBS)
+endif
 
 # multichaind-cold binary #
 multichaind_cold_LDADD = \
@@ -477,7 +511,15 @@ multichaind_cold_LDADD = \
 #if ENABLE_WALLET
 #multichaind_cold_LDADD += libbitcoin_wallet.a
 #endif
-multichaind_cold_SOURCES = multichain/multichaind-cold.cpp core/init-cold.cpp rpc/rpclist-cold.cpp chainparams/buildgenesis.cpp protocol/filter_cold.cpp
+multichaind_cold_SOURCES = \
+    multichain/multichaind-cold.cpp \
+    core/init-cold.cpp \
+    rpc/rpclist-cold.cpp \
+    chainparams/buildgenesis.cpp \
+    filters/filter_cold.cpp \
+    filters/filtercallback_cold.cpp \
+    filters/watchdog.cpp \
+    json/json_spirit_writer.cpp
 #
 
 if TARGET_WINDOWS

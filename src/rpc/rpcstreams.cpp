@@ -352,6 +352,7 @@ Value createstreamfromcmd(const Array& params, bool fHelp)
     if(mc_gState->m_Features->OffChainData())
     {
         string strError;
+        int errorCode=RPC_INVALID_PARAMETER;
         uint32_t permissions=0;
         uint32_t restrict=0;
         if(params[3].type() != bool_type)
@@ -362,7 +363,7 @@ Value createstreamfromcmd(const Array& params, bool fHelp)
                 {
                     if(d.name_ == "restrict")
                     {
-                        if(RawDataParseRestrictParameter(d.value_,&restrict,&permissions,&strError))
+                        if(RawDataParseRestrictParameter(d.value_,&restrict,&permissions,&errorCode,&strError))
                         {
                             if(restrict & MC_ENT_ENTITY_RESTRICTION_OFFCHAIN)
                             {
@@ -374,7 +375,7 @@ Value createstreamfromcmd(const Array& params, bool fHelp)
                         }
                         else
                         {
-                            throw JSONRPCError(RPC_INVALID_PARAMETER, strError);                                                                           
+                            throw JSONRPCError(errorCode, strError);                                                                           
                         }
                     }
                     else
@@ -617,6 +618,7 @@ Value publishmultifrom(const Array& params, bool fHelp)
     
     Array out_params;
     
+    bool from_address_specified=false;
     mc_EntityDetails stream_entity;
     parseStreamIdentifier(params[1],&stream_entity);           
     
@@ -651,6 +653,7 @@ Value publishmultifrom(const Array& params, bool fHelp)
     
     if(params[0].get_str() != "*")
     {
+        from_address_specified=true;
         fromaddresses=ParseAddresses(params[0].get_str(),false,false);
 
         if(fromaddresses.size() != 1)
@@ -719,6 +722,10 @@ Value publishmultifrom(const Array& params, bool fHelp)
                     valid_addresses=next_addresses;
                     if(valid_addresses.size() == 0)
                     {
+                        if(from_address_specified)
+                        {
+                            throw JSONRPCError(RPC_INSUFFICIENT_PERMISSIONS, "Publishing in this stream is not allowed from this address.");                            
+                        }
                         throw JSONRPCError(RPC_INSUFFICIENT_PERMISSIONS, "This wallet contains no addresses with permission to write to all streams and global send permission.");                                                                                                                    
                     }
                 }
@@ -781,6 +788,10 @@ Value publishmultifrom(const Array& params, bool fHelp)
         pwalletMain->AvailableCoins(vecOutputs, false, NULL, true, true, 0, lpSetAddressUint,flags);
         if(vecOutputs.size() == 0)
         {
+            if(from_address_specified)
+            {
+                throw JSONRPCError(RPC_INSUFFICIENT_PERMISSIONS, "from-address doesn't have unlocked unspent outputs.");                            
+            }
             throw JSONRPCError(RPC_WALLET_NO_UNSPENT_OUTPUTS, "Addresses with permission to write to all streams don't have unlocked unspent outputs.");
         }
 

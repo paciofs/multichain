@@ -4304,7 +4304,7 @@ void mc_InitRPCHelpMap18()
             "\nArguments:\n"
             "1. restrictions                     (object, required)  a json object with filter restrictions\n"
             "    {\n"
-             "      \"for\": \"entity-identifier\"   (string, optional) Asset/stream identifier - one of: create txid, stream reference, stream name.\n"
+            "      \"for\": \"entity-identifier\"    (string, optional) Asset/stream identifier - one of: create txid, stream reference, stream name.\n"
             "        or\n"
             "      \"for\": entity-identifier(s)   (array, optional) A json array of asset/stream identifiers .\n"    
             "    }\n"
@@ -4328,8 +4328,8 @@ void mc_InitRPCHelpMap18()
             "  \"time\": x.xxxxxx,                 (numeric) Seconds to run transaction through the filter\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("testtxfilter", "false \"{\"js\":\"js-code\"}\"")
-            + HelpExampleRpc("testtxfilter", "false, \"{\"js\":\"js-code\"}\"")
+            + HelpExampleCli("testtxfilter", "\"{}\" \"javascript-code\"")
+            + HelpExampleRpc("testtxfilter", "\"{}\", \"javascript-code\"")
         ));
      
     mapHelpStrings.insert(std::make_pair("getfiltertransaction",
@@ -4491,8 +4491,8 @@ void mc_InitRPCHelpMap19()
             "  \"time\": x.xxxxxx,                 (numeric) Seconds to run transaction through the filter\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("teststreamfilter", "false \"{\"js\":\"js-code\"}\"")
-            + HelpExampleRpc("teststreamfilter", "false, \"{\"js\":\"js-code\"}\"")
+            + HelpExampleCli("teststreamfilter", "\"{}\" \"javascript-code\"")
+            + HelpExampleRpc("teststreamfilter", "\"{}\", \"javascript-code\"")
         ));
      
      mapHelpStrings.insert(std::make_pair("getfilterassetbalances",
@@ -4518,7 +4518,7 @@ void mc_InitRPCHelpMap20()
             "2. items                              (array, required) Array of stream items. \n"
             "  [\n"                
             "    {\n"                
-            "      \"for\" : \"stream-identifier\"     (string, optional) Stream identifier, if omitted,  - one of: create txid, stream reference, stream name.\n"
+            "      \"for\" : \"stream-identifier\"     (string, optional) Stream identifier, uses default if omitted.\n"
             "      \"options\" : \"options\"           (string, optional) Should be \"offchain\" or omitted\n"
             "      \"key\" : \"key\"                   (string, optional, default: \"\") Item key\n"
             "        or\n"
@@ -4559,7 +4559,7 @@ void mc_InitRPCHelpMap20()
             "3. items                              (array, required) Array of stream items. \n"
             "  [\n"                
             "    {\n"                
-            "      \"for\" : \"stream-identifier\"     (string, optional) Stream identifier, if omitted,  - one of: create txid, stream reference, stream name.\n"
+            "      \"for\" : \"stream-identifier\"     (string, optional) Stream identifier, uses default if omitted.\n"
             "      \"options\" : \"options\"           (string, optional) Should be \"offchain\" or omitted\n"
             "      \"key\" : \"key\"                   (string, optional, default: \"\") Item key\n"
             "        or\n"

@@ -121,8 +121,23 @@ test_filters.sh
 
 /doc/doxygen/
 
+# V8
+v8build
+
 # Eclipse CDT
 .autotools
 .cproject
 .project
 .settings/
+
+# Qt Creator
+*.user
+*.config
+*.creator
+*.files
+*.includes
+
+.idea/
+cmake-build-debug
+x86_64-w64-mingw32
+*.dll

@@ -7,6 +7,7 @@
 
 #include "rpc/rpcwallet.h"
 #include "filters/multichainfilter.h"
+#include "filters/filter.h"
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry);
 void parseStreamIdentifier(Value stream_identifier,mc_EntityDetails *entity);
@@ -28,7 +29,7 @@ void ParseFilterRestrictions(Value param,mc_Script *lpDetailsScript,uint32_t fil
             {
                 if(filter_type != MC_FLT_TYPE_TX)
                 {
-                    throw JSONRPCError(RPC_INVALID_PARAMETER,"for field is allowed only for tx filters");                                                   
+                    throw JSONRPCError(RPC_NOT_ALLOWED,"for field is allowed only for tx filters");                                                   
                 }
                 if(already_found)
                 {
@@ -51,7 +52,7 @@ void ParseFilterRestrictions(Value param,mc_Script *lpDetailsScript,uint32_t fil
                     ParseEntityIdentifier(inputStrings[is],&entity, MC_ENT_TYPE_ANY);           
                     if(entity.GetEntityType() > MC_ENT_TYPE_STREAM_MAX)
                     {
-                        throw JSONRPCError(RPC_INVALID_PARAMETER, "Filter can be created only for streams and assets");           
+                        throw JSONRPCError(RPC_NOT_ALLOWED, "Filter can be created only for streams and assets");           
                     }
                     lpDetailsScript->SetData(entity.GetShortRef(),MC_AST_SHORT_TXID_SIZE);
                 }
@@ -678,7 +679,6 @@ Value getfiltertxid(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         mc_ThrowHelpMessage("getfiltertxid");        
-//        throw JSONRPCError(RPC_INVALID_PARAMS, "Wrong number of parameters");                    
     
     return pMultiChainFilterEngine->m_TxID.ToString();
 }
@@ -687,7 +687,6 @@ Value setfilterparam(const json_spirit::Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)                                            
         mc_ThrowHelpMessage("setfilterparam");        
-//        throw JSONRPCError(RPC_INVALID_PARAMS, "Wrong number of parameters");                    
     
     string param_name=params[0].get_str();
     bool fFound=false;
@@ -716,7 +715,7 @@ Value setfilterparam(const json_spirit::Array& params, bool fHelp)
 
     if(!fFound)
     {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Unsupported runtime parameter: " + param_name);                                                    
+        throw JSONRPCError(RPC_NOT_SUPPORTED, "Unsupported runtime parameter: " + param_name);                                                    
     }
     
     return "Set";
