@@ -17,7 +17,7 @@
 
 #define MC_TDB_MAX_IMPORTS           16
 
-#define MC_TDB_WALLET_VERSION         2
+#define MC_TDB_WALLET_VERSION         3
 
 
 #define MC_TET_NONE                             0x00000000
@@ -268,7 +268,9 @@ typedef struct mc_TxDB
     int Initialize(                                                             // Initalization
               const char *name,                                                 // Chain name
               uint32_t mode);                                                   // Unused
-
+    
+    int UpdateMode(uint32_t mode);
+    
     int AddEntity(mc_TxEntity *entity,uint32_t flags);                          // Adds entity to chain import
     int AddEntity(mc_TxImport *import,mc_TxEntity *entity,uint32_t flags);      // Adds entity to import
        
