@@ -21,6 +21,8 @@ before_install:
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
+  - export LDFLAGS=-L/usr/local/opt/openssl/lib
+  - export CPPFLAGS=-I/usr/local/opt/openssl/include
 
 install:
   - set MULTICHAIN_HOME=$(pwd)
@@ -50,8 +52,6 @@ install:
   - cd $RELEASE
   - python $MULTICHAIN_HOME/depends/v8_data_lib.py
   - cd $MULTICHAIN_HOME
-  - export LDFLAGS=-L/usr/local/opt/openssl/lib
-  - export CPPFLAGS=-I/usr/local/opt/openssl/include
   # disable all warnings to reduce build verbosity
   - export CXXFLAGS=-w
   - ./autogen.sh
