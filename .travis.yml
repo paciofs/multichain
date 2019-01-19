@@ -21,6 +21,7 @@ before_install:
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
   - sed -i '' 's/^    shared/    no-shared/' /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/openssl.rb
+  - brew install openssl --force
 
 install:
   - export LDFLAGS=-L/usr/local/opt/openssl/lib
