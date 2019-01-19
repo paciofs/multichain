@@ -29,13 +29,17 @@ install:
 
 script:
   - cd ./src
-  - tar czf multichain-${TRAVIS_BRANCH}.tar.gz ./multichain-cli ./multichain-util ./multichaind ./multichaind-cold
+  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-cli ./multichain-util ./multichaind ./multichaind-cold
+  - ./multichain-util create test -datadir=/tmp
+
+before_deploy:
+  - export TRAVIS_TAG=${TRAVIS_BRANCH}
 
 deploy:
   provider: releases
   api_key:
     secure: Qe0kpNVgcXzSjNyO+bQnUGfZc1cHrLrkavaIOttBfySvLECY4m8YN8pBMfqIpYZcvB5T91GgEIsnKrC0YtcXzJp+1QEHAMlYUmAwhBiQYWg0NBvSFD03VOQY6zF5ejlFOOGz9pgFyfnM92aFsN8XeHfo26/vC6rKVgr/ii7L2eqlvuKETscYROm/saQkrWxTKSoFhl81Ut3B2jfzMvGVbyZ1D+W2onhVlO2ALNNnlBwkEq934yQpR9FyMArbanxq39DyiLyMe1uxEq4mdnFovlnh0AXhgFPTa6EBhp52PH6Y/xsEmDg33blWCHlq+b1mImfWlbW7DGEv10LkN2l51d7baXb5h9G4xSqUJLrsG0eYSdabrohH/pU5R5tkcjug17/od8OleykjUyMu/FmVs3ndAZl9pnunDEKr1jyz1lB6QwM3wa1Aoj41C9piuI1ae90YsrFLRA1dzQ7MgpBVimAYAdTzxKhyb9UiEQZjzlvdiqbwSbNvY9h+0PB99NQwa2AiuedGKLFIyr6PF3CFiaP5KDOWby7KmNjX9PFPO5WgYTe67RSOwH0kPAMHFAnDx9eeroxE9wAJomwk8Y6x1BXlgFcfRmEnrilFLCm8EPyYcPqDz1X+kn/JcEaSW7n50TTZy6RoapSIst6zgMSLu0y1tPMMT06tlZpfcfiMcZo=
-  file: multichain-${TRAVIS_BRANCH}.tar.gz
+  file: multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz
   skip_cleanup: true
   overwrite: true
   on:
