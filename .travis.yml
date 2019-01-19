@@ -12,6 +12,7 @@ addons:
       - openssl
       - pkg-config
       - rename
+      - python
 
 before_install:
   - brew uninstall --ignore-dependencies boost
@@ -24,6 +25,7 @@ before_install:
 install:
   - set MULTICHAIN_HOME=$(pwd)
   - mkdir v8build && cd ./v8build
+  - pip install urllib3
   - git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
   - export PATH=${PATH}:$(pwd)/depot_tools
   - gclient
@@ -73,5 +75,5 @@ deploy:
   overwrite: true
   on:
     repo: paciofs/multichain
-    branch: 1.0.x-release
+    branch: 2.0-dev
     tags: false
