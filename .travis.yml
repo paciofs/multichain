@@ -1,0 +1,26 @@
+os: osx
+osx_image: xcode10.1
+
+addons:
+  homebrew:
+    packages:
+      - autoconf
+      - automake
+      - berkeley-db4
+      - libtool
+      - boost@1.57
+      - openssl
+      - pkg-config
+      - rename
+
+before_install:
+  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
+  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
+  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
+
+install:
+  - export LDFLAGS=-L/usr/local/opt/openssl/lib
+  - export CPPFLAGS=-I/usr/local/opt/openssl/include
+  - ./autogen.sh
+  - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no
+  - make -j2
