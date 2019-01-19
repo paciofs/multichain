@@ -41,4 +41,4 @@ deploy:
   on:
     repo: paciofs/multichain
     branch: 1.0.x-release
-    tags: true
+    tags: false
