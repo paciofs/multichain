@@ -23,11 +23,12 @@ before_install:
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
   - export LDFLAGS=-L/usr/local/opt/openssl/lib
   - export CPPFLAGS=-I/usr/local/opt/openssl/include
+  - export LD_LIBRARY_PATH=/usr/local/opt/openssl/lib
 
 install:
   - set MULTICHAIN_HOME=$(pwd)
   - mkdir v8build && cd ./v8build
-  - pip install urllib3
+  - pip install hashlib urllib3
   - git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
   - export PATH=${PATH}:$(pwd)/depot_tools
   - gclient
