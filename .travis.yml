@@ -21,6 +21,8 @@ before_install:
 install:
   - export LDFLAGS=-L/usr/local/opt/openssl/lib
   - export CPPFLAGS=-I/usr/local/opt/openssl/include
+  # disable all warnings to reduce build verbosity
+  - export CXXFLAGS=-w
   - ./autogen.sh
   - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no --with-boost=/usr/local/opt/boost@1.57
   - make -j2
