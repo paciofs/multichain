@@ -8,12 +8,15 @@ addons:
       - automake
       - berkeley-db4
       - libtool
-      - boost@1.57
+      - boost
       - openssl
       - pkg-config
       - rename
 
 before_install:
+  - brew uninstall boost
+  - brew install boost@1.57
+  - brew link boost@1.57 --force
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
