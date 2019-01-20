@@ -41,7 +41,7 @@ install:
   - make -j2
 
 script:
-  - ./multichain-util create test -datadir=/tmp
+  - ./src/multichain-util create test -datadir=/tmp
 
 before_deploy:
   - export TRAVIS_TAG=${TRAVIS_BRANCH}
