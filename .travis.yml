@@ -43,15 +43,10 @@ before_install:
   - find . -name BUILD.gn -exec sed -i bak '/exe_and_shlib_deps/d' {} \;
   - ./tools/dev/v8gen.py x64.release
   - export RELEASE=out.gn/x64.release
-  - |
-    cat > ${RELEASE}/args.gn << END
-    is_debug = false
-    target_cpu = "x64"
-    is_component_build = false
-    v8_static_library = true
-    use_custom_libcxx = false
-    use_custom_libcxx_for_host = false
-    END
+  - echo "is_component_build = false" >> ${RELEASE}/args.gn
+  - echo "v8_static_library = true" >> ${RELEASE}/args.gn
+  - echo "use_custom_libcxx = false" >> ${RELEASE}/args.gn
+  - echo "use_custom_libcxx_for_host = false" >> ${RELEASE}/args.gn
   - export CONFIG_DEFAULT_WARNINGS_LINE=$(grep --line-number "^config(\"default\_warnings\") {$" build/config/compiler/BUILD.gn | cut -f1 -d:)
   - export IS_CLANG_LINE=$(tail -n +${CONFIG_DEFAULT_WARNINGS_LINE} build/config/compiler/BUILD.gn | grep --line-number "^  if (is\_clang) {$" | head -n 1 | cut -f1 -d:)
   - export INSERT_CFLAGS_LINE=$((CONFIG_DEFAULT_WARNINGS_LINE + IS_CLANG_LINE + 1))
