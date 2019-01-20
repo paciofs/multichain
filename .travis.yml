@@ -8,17 +8,17 @@ addons:
       - automake
       - berkeley-db4
       - boost
+      - ccache
       - libtool
       - openssl
       - pkg-config
       - rename
 
+# reuse the same build artifacts
 cache: ccache
 
 before_install:
-  # reuse the same build artifacts
-  - brew install ccache
-  - export PATH ="/usr/local/opt/ccache/libexec:${PATH}"
+  - export PATH="/usr/local/opt/ccache/libexec:${PATH}"
 
   # it is insufficient to only install boost@1.57 in the first place
   # reinstallation is necessary for some reason
