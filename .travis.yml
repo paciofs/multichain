@@ -6,29 +6,35 @@ addons:
     packages:
       - autoconf
       - automake
+      - boost
       - berkeley-db4
       - libtool
-      - boost
       - openssl
       - pkg-config
-      - rename
       - python
+      - rename
 
 before_install:
+  # it is insufficient to only install boost@1.57 in the first place
+  # reinstallation is necessary for some reason
   - brew uninstall --ignore-dependencies boost
   - brew install boost@1.57
   - brew link boost@1.57 --force
+
+  # hide dynamic libraries from the build system so we get a static build
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
-  - export LDFLAGS=-L/usr/local/opt/openssl/lib
-  - export CPPFLAGS=-I/usr/local/opt/openssl/include
-  - export LD_LIBRARY_PATH=/usr/local/opt/openssl/lib
 
-install:
-  - set MULTICHAIN_HOME=$(pwd)
+  # reinstall python with OpenSSL
+  - export CPPFLAGS=-I/usr/local/opt/openssl/include
+  - export LDFLAGS=-L/usr/local/opt/openssl/lib
+  - brew uninstall --ignore-dependencies python@2
+  - brew install python@2
+
+  # V8
+  - export MULTICHAIN_HOME=$(pwd)
   - mkdir v8build && cd ./v8build
-  - pip install hashlib urllib3
   - git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
   - export PATH=${PATH}:$(pwd)/depot_tools
   - gclient
@@ -38,7 +44,7 @@ install:
   - ./tools/dev/v8gen.py x64.release
   - export RELEASE=out.gn/x64.release
   - |
-    cat > $RELEASE/args.gn << END
+    cat > ${RELEASE}/args.gn << END
     is_debug = false
     target_cpu = "x64"
     is_component_build = false
@@ -46,13 +52,24 @@ install:
     use_custom_libcxx = false
     use_custom_libcxx_for_host = false
     END
-  - gn gen $RELEASE
-  - ninja -C $RELEASE v8 d8
-  - brew install python
+  - export CONFIG_DEFAULT_WARNINGS_LINE=$(grep --line-number "^config(\"default\_warnings\") {$" build/config/compiler/BUILD.gn | cut -f1 -d:)
+  - export IS_CLANG_LINE=$(tail -n +${CONFIG_DEFAULT_WARNINGS_LINE} build/config/compiler/BUILD.gn | grep --line-number "^  if (is\_clang) {$" | head -n 1 | cut -f1 -d:)
+  - export INSERT_CFLAGS_LINE=$((CONFIG_DEFAULT_WARNINGS_LINE + IS_CLANG_LINE + 1))
+  - ex -s -c "${INSERT_CFLAGS_LINE}i|      \"-Wno-null-pointer-arithmetic\"," -c x build/config/compiler/BUILD.gn
+  - ex -s -c "${INSERT_CFLAGS_LINE}i|      \"-Wno-defaulted-function-deleted\"," -c x build/config/compiler/BUILD.gn
+  # the trace event repository is checked out at master, which does not compile currently
+  # so use the version that was most likely used for 6.8.290
+  - cd ./base/trace_event/common
+  - git checkout 211b3ed9d0481b4caddbee1322321b86a483ca1f
+  - cd ../../../
+  - gn gen ${RELEASE}
+  - ninja -C ${RELEASE} v8 d8
   - pip install pathlib2
-  - cd $RELEASE
-  - python $MULTICHAIN_HOME/depends/v8_data_lib.py
-  - cd $MULTICHAIN_HOME
+  - cd ${RELEASE}
+  - python ${MULTICHAIN_HOME}/depends/v8_data_lib.py --multichain $MULTICHAIN_HOME
+
+install:
+  - cd ${MULTICHAIN_HOME}
   # disable all warnings to reduce build verbosity
   - export CXXFLAGS=-w
   - ./autogen.sh
@@ -60,9 +77,13 @@ install:
   - make -j2
 
 script:
-  - cd ./src
-  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-cli ./multichain-util ./multichaind ./multichaind-cold
   - ./multichain-util create test -datadir=/tmp
+  - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  - cp ./src/multichain-util ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  - cp ./src/multichaind-cold ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
 
 before_deploy:
   - export TRAVIS_TAG=${TRAVIS_BRANCH}
