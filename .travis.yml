@@ -1,96 +1,95 @@
 os: osx
 osx_image: xcode10.1
 
+# needed for ccache
+language: cpp
+
+# ccache on macOS
 addons:
   homebrew:
     packages:
-      - autoconf
-      - automake
-      - boost
-      - berkeley-db4
-      - libtool
-      - openssl
-      - pkg-config
-      - python
-      - rename
+      - ccache
 
-before_install:
-  # it is insufficient to only install boost@1.57 in the first place
-  # reinstallation is necessary for some reason
-  - brew uninstall --ignore-dependencies boost
-  - brew install boost@1.57
-  - brew link boost@1.57 --force
+# cache V8 artifacts across stages
+cache:
+  # large cache requires large timeout for transfer
+  timeout: 1800
+  ccache: true
+  directories:
+    - ./v8build
 
-  # hide dynamic libraries from the build system so we get a static build
-  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
-  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
-  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
+jobs:
+  include:
+    # separate fetching and building of V8 into multiple shared-cache stages to avoid hitting the 50 minute time limit
+    - stage: fetch-v8
+      script: ./.travis/fetch-v8.sh
 
-  # reinstall python with OpenSSL
-  - export CPPFLAGS=-I/usr/local/opt/openssl/include
-  - export LDFLAGS=-L/usr/local/opt/openssl/lib
-  - brew uninstall --ignore-dependencies python@2
-  - brew install python@2
+    # build dependencies
+    - stage: build-antlr4
+      script: ./.travis/build-v8.sh antlr4
+    - stage: build-icu
+      script: ./.travis/build-v8.sh icu
 
-  # V8
-  - export MULTICHAIN_HOME=$(pwd)
-  - mkdir v8build && cd ./v8build
-  - git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
-  - export PATH=${PATH}:$(pwd)/depot_tools
-  - gclient
-  - fetch v8 && cd ./v8
-  - git checkout 6.8.290
-  - find . -name BUILD.gn -exec sed -i bak '/exe_and_shlib_deps/d' {} \;
-  - ./tools/dev/v8gen.py x64.release
-  - export RELEASE=out.gn/x64.release
-  - echo "is_component_build = false" >> ${RELEASE}/args.gn
-  - echo "v8_static_library = true" >> ${RELEASE}/args.gn
-  - echo "use_custom_libcxx = false" >> ${RELEASE}/args.gn
-  - echo "use_custom_libcxx_for_host = false" >> ${RELEASE}/args.gn
-  - export CONFIG_DEFAULT_WARNINGS_LINE=$(grep --line-number "^config(\"default\_warnings\") {$" build/config/compiler/BUILD.gn | cut -f1 -d:)
-  - export IS_CLANG_LINE=$(tail -n +${CONFIG_DEFAULT_WARNINGS_LINE} build/config/compiler/BUILD.gn | grep --line-number "^  if (is\_clang) {$" | head -n 1 | cut -f1 -d:)
-  - export INSERT_CFLAGS_LINE=$((CONFIG_DEFAULT_WARNINGS_LINE + IS_CLANG_LINE + 1))
-  - ex -s -c "${INSERT_CFLAGS_LINE}i|      \"-Wno-null-pointer-arithmetic\"," -c x build/config/compiler/BUILD.gn
-  - ex -s -c "${INSERT_CFLAGS_LINE}i|      \"-Wno-defaulted-function-deleted\"," -c x build/config/compiler/BUILD.gn
-  # the trace event repository is checked out at master, which does not compile currently
-  # so use the version that was most likely used for 6.8.290
-  - cd ./base/trace_event/common
-  - git checkout 211b3ed9d0481b4caddbee1322321b86a483ca1f
-  - cd ../../../
-  - gn gen ${RELEASE}
-  - ninja -C ${RELEASE} v8 d8
-  - pip install pathlib2
-  - cd ${RELEASE}
-  - python ${MULTICHAIN_HOME}/depends/v8_data_lib.py --multichain $MULTICHAIN_HOME
+    # finally build V8
+    - stage: build-v8
+      script: ./.travis/build-v8.sh d8 v8
 
-install:
-  - cd ${MULTICHAIN_HOME}
-  # disable all warnings to reduce build verbosity
-  - export CXXFLAGS=-w
-  - ./autogen.sh
-  - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no --with-boost=/usr/local/opt/boost@1.57
-  - make -j2
+    # now build and deploy MultiChain
+    - stage: "Build MultiChain"
+      script:
+        # install dependencies
+        - brew install autoconf automake boost berkeley-db4 libtool openssl pkg-config python rename
 
-script:
-  - ./multichain-util create test -datadir=/tmp
-  - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - cp ./src/multichain-util ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - cp ./src/multichaind-cold ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+        # it is insufficient to only install boost@1.57 in the first place
+        # reinstallation is necessary for some reason
+        - brew uninstall --ignore-dependencies boost
+        - brew install boost@1.57
+        - brew link boost@1.57 --force
 
-before_deploy:
-  - export TRAVIS_TAG=${TRAVIS_BRANCH}
+        # hide dynamic libraries from the build system so we get a static build
+        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
+        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
+        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
 
-deploy:
-  provider: releases
-  api_key:
-    secure: Qe0kpNVgcXzSjNyO+bQnUGfZc1cHrLrkavaIOttBfySvLECY4m8YN8pBMfqIpYZcvB5T91GgEIsnKrC0YtcXzJp+1QEHAMlYUmAwhBiQYWg0NBvSFD03VOQY6zF5ejlFOOGz9pgFyfnM92aFsN8XeHfo26/vC6rKVgr/ii7L2eqlvuKETscYROm/saQkrWxTKSoFhl81Ut3B2jfzMvGVbyZ1D+W2onhVlO2ALNNnlBwkEq934yQpR9FyMArbanxq39DyiLyMe1uxEq4mdnFovlnh0AXhgFPTa6EBhp52PH6Y/xsEmDg33blWCHlq+b1mImfWlbW7DGEv10LkN2l51d7baXb5h9G4xSqUJLrsG0eYSdabrohH/pU5R5tkcjug17/od8OleykjUyMu/FmVs3ndAZl9pnunDEKr1jyz1lB6QwM3wa1Aoj41C9piuI1ae90YsrFLRA1dzQ7MgpBVimAYAdTzxKhyb9UiEQZjzlvdiqbwSbNvY9h+0PB99NQwa2AiuedGKLFIyr6PF3CFiaP5KDOWby7KmNjX9PFPO5WgYTe67RSOwH0kPAMHFAnDx9eeroxE9wAJomwk8Y6x1BXlgFcfRmEnrilFLCm8EPyYcPqDz1X+kn/JcEaSW7n50TTZy6RoapSIst6zgMSLu0y1tPMMT06tlZpfcfiMcZo=
-  file: multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz
-  skip_cleanup: true
-  overwrite: true
-  on:
-    repo: paciofs/multichain
-    branch: 2.0-dev
-    tags: false
+        # reinstall python with OpenSSL
+        - export CPPFLAGS=-I/usr/local/opt/openssl/include
+        - export LDFLAGS=-L/usr/local/opt/openssl/lib
+        - brew uninstall --ignore-dependencies python@2
+        - brew install python@2
+
+        # make V8 libraries available
+        - pip install pathlib2
+        - cd ${RELEASE}
+        - python ./depends/v8_data_lib.py --multichain .
+
+        # disable all warnings to reduce build verbosity
+        - export CXXFLAGS=-w
+        - ./autogen.sh
+        - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no --with-boost=/usr/local/opt/boost@1.57
+        - make -j2
+
+        # tiny test
+        - ./src/multichain-util create test -datadir=/tmp
+
+        # pack binaries
+        - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+        - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+        - cp ./src/multichain-util ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+        - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+        - cp ./src/multichaind-cold ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+        - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+
+        # this names the deployed tag
+        - export TRAVIS_TAG=${TRAVIS_BRANCH}
+
+      deploy:
+        provider: releases
+        api_key:
+          secure: Qe0kpNVgcXzSjNyO+bQnUGfZc1cHrLrkavaIOttBfySvLECY4m8YN8pBMfqIpYZcvB5T91GgEIsnKrC0YtcXzJp+1QEHAMlYUmAwhBiQYWg0NBvSFD03VOQY6zF5ejlFOOGz9pgFyfnM92aFsN8XeHfo26/vC6rKVgr/ii7L2eqlvuKETscYROm/saQkrWxTKSoFhl81Ut3B2jfzMvGVbyZ1D+W2onhVlO2ALNNnlBwkEq934yQpR9FyMArbanxq39DyiLyMe1uxEq4mdnFovlnh0AXhgFPTa6EBhp52PH6Y/xsEmDg33blWCHlq+b1mImfWlbW7DGEv10LkN2l51d7baXb5h9G4xSqUJLrsG0eYSdabrohH/pU5R5tkcjug17/od8OleykjUyMu/FmVs3ndAZl9pnunDEKr1jyz1lB6QwM3wa1Aoj41C9piuI1ae90YsrFLRA1dzQ7MgpBVimAYAdTzxKhyb9UiEQZjzlvdiqbwSbNvY9h+0PB99NQwa2AiuedGKLFIyr6PF3CFiaP5KDOWby7KmNjX9PFPO5WgYTe67RSOwH0kPAMHFAnDx9eeroxE9wAJomwk8Y6x1BXlgFcfRmEnrilFLCm8EPyYcPqDz1X+kn/JcEaSW7n50TTZy6RoapSIst6zgMSLu0y1tPMMT06tlZpfcfiMcZo=
+        file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz
+        skip_cleanup: true
+        overwrite: true
+        on:
+          repo: paciofs/multichain
+          branch: 2.0-dev
+          tags: false
