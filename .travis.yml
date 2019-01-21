@@ -26,7 +26,7 @@ jobs:
 
     # build dependencies
     - stage: build-v8-stage-1
-      script: ./.travis/build-v8.sh antlr4 icu torque v8_libbase v8_libplatform v8_libsampler
+      script: ./.travis/build-v8.sh antlr4 icu inspector torque v8_libbase v8_libplatform v8_libsampler
     - stage: build-v8-stage-2
       script: ./.travis/build-v8.sh v8_base
 
