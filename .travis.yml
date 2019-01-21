@@ -25,13 +25,13 @@ jobs:
       script: ./.travis/fetch-v8.sh
 
     # build dependencies
-    - stage: build-antlr4-icu-torque
-      script: ./.travis/build.sh antlr4 icu torque
-    - stage: build-v8-libbase-libplatform-libsampler-base
-      script: ./.travis/build.sh v8_libbase v8_libplatform v8_libsampler v8_base
+    - stage: build-v8-stage-1
+      script: ./.travis/build-v8.sh antlr4 icu torque v8_libbase v8_libplatform v8_libsampler
+    - stage: build-v8-stage-2
+      script: ./.travis/build-v8.sh v8_base
 
     # finally build V8
-    - stage: build-d8-v8
+    - stage: build-v8-stage-3
       script: ./.travis/build-v8.sh d8 v8
 
     # now build and deploy MultiChain
