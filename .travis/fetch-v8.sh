@@ -2,9 +2,6 @@
 
 set -x
 
-# use ccache
-export PATH="/usr/local/opt/ccache/libexec:$PATH"
-
 # fetch V8 if necessary
 if [ ! -d "./v8build/v8" ]; then
   cd ./v8build
@@ -36,12 +33,7 @@ if [ ! -d "./v8build/v8" ]; then
   ./tools/dev/v8gen.py x64.release
   export RELEASE=out.gn/x64.release
 
-  # from the chromium docs
-  export CCACHE_CPP2=yes
-  export CCACHE_SLOPPINESS=time_macros
-  export PATH="$(pwd)/third_party/llvm-build/Release+Asserts/bin:${PATH}"
-
   # generate release info
   gn gen ${RELEASE} \
-    --args='cc_wrapper="ccache" is_component_build=false is_debug=false target_cpu="x64" use_custom_libcxx=false use_custom_libcxx_for_host=false v8_static_library=true'
+    --args='is_component_build=false is_debug=false target_cpu="x64" use_custom_libcxx=false use_custom_libcxx_for_host=false v8_static_library=true'
 fi

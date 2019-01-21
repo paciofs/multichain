@@ -1,20 +1,12 @@
 os: osx
 osx_image: xcode10.1
 
-# needed for ccache
 language: cpp
-
-# ccache on macOS
-addons:
-  homebrew:
-    packages:
-      - ccache
 
 # cache V8 artifacts across stages
 cache:
   # large cache requires large timeout for transfer
   timeout: 1800
-  ccache: true
   directories:
     - ./v8build
 
