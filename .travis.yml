@@ -51,7 +51,6 @@ jobs:
 
         # make V8 libraries available
         - pip install pathlib2
-        - cd ${RELEASE}
         - python ./depends/v8_data_lib.py --multichain .
 
         # disable all warnings to reduce build verbosity
