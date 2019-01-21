@@ -35,7 +35,7 @@ jobs:
       script: ./.travis/build-v8.sh d8 v8
 
     # now build and deploy MultiChain
-    - stage: "Build MultiChain"
+    - stage: build-multichain
       script:
         # install dependencies
         - brew install autoconf automake boost berkeley-db4 libtool openssl pkg-config python rename
