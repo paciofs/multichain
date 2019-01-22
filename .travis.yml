@@ -113,9 +113,11 @@ jobs:
       deploy:
         # deploy as GitHub release
         provider: releases
-        api_key:
-          # encrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
-          secure: ${ENCRYPTED_GITHUB_OAUTH_TOKEN}
+        # unencrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
+        # this means you have to answer `no` when prompted whether to encrypt the API key
+        # instead, add an environment variable `GITHUB_OAUTH_TOKEN` to your repository settings in Travis,
+        # and select its value not to be displayed in the build log
+        api_key: ${GITHUB_OAUTH_TOKEN}
         file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}-${LAST_UPSTREAM}.tar.gz
         skip_cleanup: true
         overwrite: true
