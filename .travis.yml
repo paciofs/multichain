@@ -30,7 +30,7 @@ jobs:
     - stage: build-multichain
       script:
         # install dependencies
-        - brew install autoconf automake boost berkeley-db4 libtool openssl pkg-config python rename
+        - brew install autoconf automake boost berkeley-db4 libtool nasm openssl pkg-config python rename
 
         # it is insufficient to only install boost@1.57 in the first place
         # reinstallation is necessary for some reason
