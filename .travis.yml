@@ -51,7 +51,7 @@ jobs:
 
         # make V8 libraries available
         - pip install pathlib2
-        - python ./depends/v8_data_lib.py --multichain .
+        - python ./depends/v8_data_lib.py --multichain $(pwd)
 
         # disable all warnings to reduce build verbosity
         - export CXXFLAGS=-w
