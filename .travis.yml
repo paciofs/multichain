@@ -1,6 +1,10 @@
 os: osx
 osx_image: xcode10.1
 
+# do not build tagged commits
+# this way we avoid rebuilding upon successful deployment (see below)
+if: tag IS blank
+
 language: cpp
 
 addons:
@@ -47,19 +51,23 @@ script:
   - ./src/multichain-cli test -datadir=/tmp/mc-test getblockchaininfo
   - kill $(< /tmp/mc-test/test/multichain.pid)
 
-before_deploy:
+after_success:
   # figure out date of last upstream commit to this branch
   - LAST_MERGE=$(git log --merges --max-count=1 ${TRAVIS_BRANCH} --format=%ad)
   - LAST_UPSTREAM=$(git log --before="${LAST_MERGE}" --skip=1 --max-count=1 --format=%ai ${TRAVIS_BRANCH})
   - LAST_UPSTREAM=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_UPSTREAM}" "+%Y%m%dT%H%M%S")
 
+  # this names the deployed tag and enables the deploy phase
+  - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_UPSTREAM}
+
+before_deploy:
   # pack binaries
   - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichain-util ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichaind-cold ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}-${LAST_UPSTREAM}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
 
   # this names the deployed tag
   - export TRAVIS_TAG=${TRAVIS_BRANCH}
@@ -72,10 +80,12 @@ deploy:
   # instead, add an environment variable `GITHUB_OAUTH_TOKEN` to your repository settings in Travis,
   # and select its value not to be displayed in the build log
   api_key: ${GITHUB_OAUTH_TOKEN}
-  file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}-${LAST_UPSTREAM}.tar.gz
+  file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz
+  # otherwise Travis would clean out generated archive
   skip_cleanup: true
+  # for the same tag the file can be overwritten
   overwrite: true
   on:
     repo: ${TRAVIS_REPO_SLUG}
-    branch: ${TRAVIS_BRANCH}
-    tags: false
+    # fulfilled because we set TRAVIS_TAG
+    tags: true
