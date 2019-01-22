@@ -58,11 +58,14 @@ jobs:
         # hide dynamic libraries from the build system so we get a static build
         - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
         - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
-        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
 
-        # reinstall python with OpenSSL
+        # reinstall OpenSSL, but with static libraries only
+        - sed -i '' 's/^    shared$/    no-shared/' /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/openssl.rb
+        - brew reinstall openssl --build-from-source
         - export CPPFLAGS=-I/usr/local/opt/openssl/include
         - export LDFLAGS=-L/usr/local/opt/openssl/lib
+
+        # reinstall python, for some reason the default installation errors on importing hashlib
         - brew uninstall --ignore-dependencies python@2
         - brew install python@2
 
