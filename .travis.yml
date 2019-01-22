@@ -14,24 +14,41 @@ jobs:
   include:
     # separate fetching and building of V8 into multiple shared-cache stages to avoid hitting the 50 minute time limit
     - stage: fetch-v8
-      script: ./.travis/fetch-v8.sh
+      install: ./.travis/fetch-v8.sh
+      script: skip
 
     # build dependencies
     - stage: build-v8-stage-1
-      script: ./.travis/build-v8.sh antlr4 icu inspector torque v8_libbase v8_libplatform v8_libsampler
+      install: ./.travis/build-v8.sh antlr4 icu inspector torque v8_libbase v8_libplatform v8_libsampler
+      script: skip
     - stage: build-v8-stage-2
-      script: ./.travis/build-v8.sh v8_base
+      install: ./.travis/build-v8.sh v8_base
+      script: skip
 
     # finally build V8
     - stage: build-v8-stage-3
-      script: ./.travis/build-v8.sh d8 v8
+      install: ./.travis/build-v8.sh d8 v8
+      script: skip
 
     # now build and deploy MultiChain
     - stage: build-multichain
-      script:
-        # install dependencies
-        - brew install autoconf automake boost berkeley-db4 libtool nasm openssl pkg-config python rename
+      addons:
+        # use addon instead of `brew install` since it does not exit with 1
+        # if packages are already installed
+        homebrew:
+          packages:
+            - autoconf
+            - automake
+            - boost
+            - berkeley-db4
+            - libtool
+            - nasm
+            - openssl
+            - pkg-config
+            - python
+            - rename
 
+      install:
         # it is insufficient to only install boost@1.57 in the first place
         # reinstallation is necessary for some reason
         - brew uninstall --ignore-dependencies boost
@@ -59,9 +76,11 @@ jobs:
         - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no --with-boost=/usr/local/opt/boost@1.57
         - make -j2
 
+      script:
         # tiny test
         - ./src/multichain-util create test -datadir=/tmp
 
+      before_deploy:
         # pack binaries
         - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
         - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
@@ -74,8 +93,10 @@ jobs:
         - export TRAVIS_TAG=${TRAVIS_BRANCH}
 
       deploy:
+        # deploy as GitHub release
         provider: releases
         api_key:
+          # robert-schmidtke's GitHub OAuth token, generated using `travis setup releases`
           secure: Qe0kpNVgcXzSjNyO+bQnUGfZc1cHrLrkavaIOttBfySvLECY4m8YN8pBMfqIpYZcvB5T91GgEIsnKrC0YtcXzJp+1QEHAMlYUmAwhBiQYWg0NBvSFD03VOQY6zF5ejlFOOGz9pgFyfnM92aFsN8XeHfo26/vC6rKVgr/ii7L2eqlvuKETscYROm/saQkrWxTKSoFhl81Ut3B2jfzMvGVbyZ1D+W2onhVlO2ALNNnlBwkEq934yQpR9FyMArbanxq39DyiLyMe1uxEq4mdnFovlnh0AXhgFPTa6EBhp52PH6Y/xsEmDg33blWCHlq+b1mImfWlbW7DGEv10LkN2l51d7baXb5h9G4xSqUJLrsG0eYSdabrohH/pU5R5tkcjug17/od8OleykjUyMu/FmVs3ndAZl9pnunDEKr1jyz1lB6QwM3wa1Aoj41C9piuI1ae90YsrFLRA1dzQ7MgpBVimAYAdTzxKhyb9UiEQZjzlvdiqbwSbNvY9h+0PB99NQwa2AiuedGKLFIyr6PF3CFiaP5KDOWby7KmNjX9PFPO5WgYTe67RSOwH0kPAMHFAnDx9eeroxE9wAJomwk8Y6x1BXlgFcfRmEnrilFLCm8EPyYcPqDz1X+kn/JcEaSW7n50TTZy6RoapSIst6zgMSLu0y1tPMMT06tlZpfcfiMcZo=
         file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz
         skip_cleanup: true
