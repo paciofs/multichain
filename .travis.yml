@@ -97,6 +97,10 @@ jobs:
         - ./src/multichain-cli test -datadir=/tmp/mc-test getblockchaininfo
         - kill $(< /tmp/mc-test/test/multichain.pid)
 
+      after_success:
+        # this names the deployed tag and enables the deploy phase
+        - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_UPSTREAM}
+
       before_deploy:
         # figure out date of last upstream commit to this branch
         - LAST_MERGE=$(git log --merges --max-count=1 ${TRAVIS_BRANCH} --format=%ad)
@@ -110,9 +114,6 @@ jobs:
         - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
         - cp ./src/multichaind-cold ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
         - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-
-        # this names the deployed tag
-        - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_UPSTREAM}
 
       deploy:
         # deploy as GitHub release
