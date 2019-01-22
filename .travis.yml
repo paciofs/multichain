@@ -16,19 +16,23 @@ jobs:
     - stage: fetch-v8
       install: ./.travis/fetch-v8.sh
       script: skip
+      if: commit_message !~ /skip-stages/
 
     # build dependencies
     - stage: build-v8-stage-1
       install: ./.travis/build-v8.sh antlr4 icu inspector torque v8_libbase v8_libplatform v8_libsampler
       script: skip
+      if: commit_message !~ /skip-stages/
     - stage: build-v8-stage-2
       install: ./.travis/build-v8.sh v8_base
       script: skip
+      if: commit_message !~ /skip-stages/
 
     # finally build V8
     - stage: build-v8-stage-3
       install: ./.travis/build-v8.sh d8 v8
       script: skip
+      if: commit_message !~ /skip-stages/
 
     # now build and deploy MultiChain
     - stage: build-multichain
@@ -55,6 +59,14 @@ jobs:
         - brew install boost@1.57
         - brew link boost@1.57 --force
 
+        # reinstall python, for some reason the default installation errors on importing hashlib
+        - brew uninstall --ignore-dependencies python@2
+        - brew install python@2
+
+        # make V8 libraries available
+        - pip install pathlib2
+        - python ./depends/v8_data_lib.py --multichain $(pwd)
+
         # hide dynamic libraries from the build system so we get a static build
         - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
         - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
@@ -65,14 +77,6 @@ jobs:
         - export CPPFLAGS=-I/usr/local/opt/openssl/include
         - export LDFLAGS=-L/usr/local/opt/openssl/lib
 
-        # reinstall python, for some reason the default installation errors on importing hashlib
-        - brew uninstall --ignore-dependencies python@2
-        - brew install python@2
-
-        # make V8 libraries available
-        - pip install pathlib2
-        - python ./depends/v8_data_lib.py --multichain $(pwd)
-
         # disable all warnings to reduce build verbosity
         - export CXXFLAGS=-w
         - ./autogen.sh
@@ -81,7 +85,11 @@ jobs:
 
       script:
         # tiny test
-        - ./src/multichain-util create test -datadir=/tmp
+        - mkdir /tmp/mc-test
+        - ./src/multichain-util create test 20006 -datadir=/tmp/mc-test -rpcpassword=rpcpass
+        - ./src/multichaind test 20006 -daemon -datadir=/tmp/mc-test -pid=/tmp/mc-test/test/multichain.pid
+        - ./src/multichain-cli test -datadir=/tmp/mc-test getblockchaininfo
+        - kill $(< /tmp/mc-test/test/multichain.pid)
 
       before_deploy:
         # figure out date of last upstream commit to this branch
