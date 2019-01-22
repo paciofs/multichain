@@ -1,6 +1,8 @@
 os: osx
 osx_image: xcode10.1
 
+language: cpp
+
 addons:
   homebrew:
     packages:
@@ -14,12 +16,7 @@ addons:
       - pkg-config
       - rename
 
-# reuse the same build artifacts
-cache: ccache
-
-before_install:
-  - export PATH="/usr/local/opt/ccache/libexec:${PATH}"
-
+install:
   # it is insufficient to only install boost@1.57 in the first place
   # reinstallation is necessary for some reason
   - brew uninstall --ignore-dependencies boost
@@ -29,11 +26,13 @@ before_install:
   # hide dynamic libraries from the build system so we get a static build
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
   - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
-  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/openssl/lib/*.dylib
 
-install:
-  - export LDFLAGS=-L/usr/local/opt/openssl/lib
+  # reinstall OpenSSL, but with static libraries only
+  - sed -i '' 's/^    shared$/    no-shared/' /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/openssl.rb
+  - brew reinstall openssl --build-from-source
   - export CPPFLAGS=-I/usr/local/opt/openssl/include
+  - export LDFLAGS=-L/usr/local/opt/openssl/lib
+
   # disable all warnings to reduce build verbosity
   - export CXXFLAGS=-w
   - ./autogen.sh
@@ -41,25 +40,42 @@ install:
   - make -j2
 
 script:
-  - ./src/multichain-util create test -datadir=/tmp
+  # tiny test
+  - mkdir /tmp/mc-test
+  - ./src/multichain-util create test 10011 -datadir=/tmp/mc-test -rpcpassword=rpcpass
+  - ./src/multichaind test 10011 -daemon -datadir=/tmp/mc-test -pid=/tmp/mc-test/test/multichain.pid
+  - ./src/multichain-cli test -datadir=/tmp/mc-test getblockchaininfo
+  - kill $(< /tmp/mc-test/test/multichain.pid)
 
 before_deploy:
-  - export TRAVIS_TAG=${TRAVIS_BRANCH}
+  # figure out date of last upstream commit to this branch
+  - LAST_MERGE=$(git log --merges --max-count=1 ${TRAVIS_BRANCH} --format=%ad)
+  - LAST_UPSTREAM=$(git log --before="${LAST_MERGE}" --skip=1 --max-count=1 --format=%ai ${TRAVIS_BRANCH})
+  - LAST_UPSTREAM=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_UPSTREAM}" "+%Y%m%dT%H%M%S")
+
+  # pack binaries
   - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichain-util ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
   - cp ./src/multichaind-cold ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}-${LAST_UPSTREAM}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+
+  # this names the deployed tag
+  - export TRAVIS_TAG=${TRAVIS_BRANCH}
 
 deploy:
+  # deploy as GitHub release
   provider: releases
-  api_key:
-    secure: Qe0kpNVgcXzSjNyO+bQnUGfZc1cHrLrkavaIOttBfySvLECY4m8YN8pBMfqIpYZcvB5T91GgEIsnKrC0YtcXzJp+1QEHAMlYUmAwhBiQYWg0NBvSFD03VOQY6zF5ejlFOOGz9pgFyfnM92aFsN8XeHfo26/vC6rKVgr/ii7L2eqlvuKETscYROm/saQkrWxTKSoFhl81Ut3B2jfzMvGVbyZ1D+W2onhVlO2ALNNnlBwkEq934yQpR9FyMArbanxq39DyiLyMe1uxEq4mdnFovlnh0AXhgFPTa6EBhp52PH6Y/xsEmDg33blWCHlq+b1mImfWlbW7DGEv10LkN2l51d7baXb5h9G4xSqUJLrsG0eYSdabrohH/pU5R5tkcjug17/od8OleykjUyMu/FmVs3ndAZl9pnunDEKr1jyz1lB6QwM3wa1Aoj41C9piuI1ae90YsrFLRA1dzQ7MgpBVimAYAdTzxKhyb9UiEQZjzlvdiqbwSbNvY9h+0PB99NQwa2AiuedGKLFIyr6PF3CFiaP5KDOWby7KmNjX9PFPO5WgYTe67RSOwH0kPAMHFAnDx9eeroxE9wAJomwk8Y6x1BXlgFcfRmEnrilFLCm8EPyYcPqDz1X+kn/JcEaSW7n50TTZy6RoapSIst6zgMSLu0y1tPMMT06tlZpfcfiMcZo=
-  file: multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz
+  # unencrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
+  # this means you have to answer `no` when prompted whether to encrypt the API key
+  # instead, add an environment variable `GITHUB_OAUTH_TOKEN` to your repository settings in Travis,
+  # and select its value not to be displayed in the build log
+  api_key: ${GITHUB_OAUTH_TOKEN}
+  file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}-${LAST_UPSTREAM}.tar.gz
   skip_cleanup: true
   overwrite: true
   on:
-    repo: paciofs/multichain
-    branch: 1.0.x-release
+    repo: ${TRAVIS_REPO_SLUG}
+    branch: ${TRAVIS_BRANCH}
     tags: false
