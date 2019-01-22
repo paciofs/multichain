@@ -16,6 +16,8 @@ jobs:
     - stage: fetch-v8
       install: ./.travis/fetch-v8.sh
       script: skip
+      # include `skip-stages` anywhere in the commit message to skip all of these V8-related stages
+      # when the cache is up-to-date, this saves a lot of time
       if: commit_message !~ /skip-stages/
 
     # build dependencies
@@ -71,7 +73,7 @@ jobs:
         - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
         - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
 
-        # reinstall OpenSSL, but with static libraries only
+        # reinstall OpenSSL AFTER reinstalling python, but with static libraries only
         - sed -i '' 's/^    shared$/    no-shared/' /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/openssl.rb
         - brew reinstall openssl --build-from-source
         - export CPPFLAGS=-I/usr/local/opt/openssl/include
@@ -113,7 +115,7 @@ jobs:
         provider: releases
         api_key:
           # encrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
-          secure: ENCRYPTED_GITHUB_OAUTH_TOKEN
+          secure: ${ENCRYPTED_GITHUB_OAUTH_TOKEN}
         file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}-${LAST_UPSTREAM}.tar.gz
         skip_cleanup: true
         overwrite: true
