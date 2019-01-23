@@ -52,11 +52,14 @@ script:
   - kill $(< /tmp/mc-test/test/multichain.pid)
 
 after_success:
+  # figure out date of current commit
+  - TRAVIS_COMMIT_DATE=$(git show ${TRAVIS_COMMIT} --format=%ad --no-patch)
+
   # figure out date of last upstream commit to this branch
   - git remote add upstream https://github.com/MultiChain/multichain.git
   - git fetch upstream
 
-  - LAST_UPSTREAM_COMMIT_HASH=$(git log --format=%P --max-count=1 upstream/${TRAVIS_BRANCH} | cut -f2 -d' ')
+  - LAST_UPSTREAM_COMMIT_HASH=$(git log --before="${TRAVIS_COMMIT_DATE}" --format=%H --max-count=1 upstream/${TRAVIS_BRANCH})
   - LAST_UPSTREAM_COMMIT_DATE_ISO=$(git show ${LAST_UPSTREAM_COMMIT_HASH} --format=%ai --no-patch)
   - LAST_UPSTREAM_COMMIT_DATE=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_UPSTREAM_COMMIT_DATE_ISO}" "+%Y%m%dT%H%M%S")
 
