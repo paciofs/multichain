@@ -133,6 +133,10 @@ jobs:
         - RELEASE_ARCHIVE=./multichain-${TRAVIS_BRANCH}-${LAST_UPSTREAM_COMMIT_HASH_SHORT}-${TRAVIS_OS_NAME}.tar.gz
         - tar czf ${RELEASE_ARCHIVE} ${RELEASE_DIR}
 
+        # create md5 for archive
+        - RELEASE_ARCHIVE_MD5=${RELEASE_ARCHIVE}.md5
+        - md5 -q ${RELEASE_ARCHIVE} > ${RELEASE_ARCHIVE_MD5}
+
       deploy:
         name: "${TRAVIS_BRANCH} at ${LAST_UPSTREAM_COMMIT_HASH_SHORT}"
         body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_UPSTREAM_COMMIT_HASH}"
@@ -143,7 +147,9 @@ jobs:
         # instead, add an environment variable `GITHUB_OAUTH_TOKEN` to your repository settings in Travis,
         # and select its value not to be displayed in the build log
         api_key: ${GITHUB_OAUTH_TOKEN}
-        file: ${RELEASE_ARCHIVE}
+        file:
+          - ${RELEASE_ARCHIVE}
+          - ${RELEASE_ARCHIVE_MD5}
         # otherwise Travis would clean out generated archive
         skip_cleanup: true
         # for the same tag the file can be overwritten
