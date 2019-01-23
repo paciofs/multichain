@@ -98,14 +98,15 @@ jobs:
         - ./src/multichain-cli test -datadir=/tmp/mc-test stop
 
       after_success:
-        # figure out date of current commit
-        - TRAVIS_COMMIT_DATE=$(git show ${TRAVIS_COMMIT} --format=%ad --no-patch)
-
-        # figure out date of last upstream commit to this branch
+        # get the upstream so we can figure out how far behind we are
         - git remote add upstream https://github.com/MultiChain/multichain.git
         - git fetch upstream
 
-        - LAST_UPSTREAM_COMMIT_HASH=$(git log --before="${TRAVIS_COMMIT_DATE}" --format=%H --max-count=1 upstream/${TRAVIS_BRANCH})
+        # number of commits that have occurred since we last merged, take the oldest one (if any)
+        - MISSED_UPSTREAM_COMMITS=$(git rev-list --count ${TRAVIS_BRANCH}..upstream/${TRAVIS_BRANCH})
+
+        # skip this many commits (may be zero) in order to get the hash of the last upstream commit we merged
+        - LAST_UPSTREAM_COMMIT_HASH=$(git rev-list --max-count 1 --skip ${MISSED_UPSTREAM_COMMITS} upstream/${TRAVIS_BRANCH})
         - LAST_UPSTREAM_COMMIT_DATE_ISO=$(git show ${LAST_UPSTREAM_COMMIT_HASH} --format=%ai --no-patch)
         - LAST_UPSTREAM_COMMIT_DATE=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_UPSTREAM_COMMIT_DATE_ISO}" "+%Y%m%dT%H%M%S")
 
