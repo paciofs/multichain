@@ -129,7 +129,7 @@ jobs:
         - cp ./src/multichaind-cold ${RELEASE_DIR}
 
         # name and build the archive
-        - LAST_UPSTREAM_COMMIT_HASH_SHORT=$(git show $LAST_UPSTREAM_COMMIT_HASH --format=%p --no-patch)
+        - LAST_UPSTREAM_COMMIT_HASH_SHORT=$(git show $LAST_UPSTREAM_COMMIT_HASH --format=%h --no-patch)
         - RELEASE_ARCHIVE=./multichain-${TRAVIS_BRANCH}-${LAST_UPSTREAM_COMMIT_HASH_SHORT}-${TRAVIS_OS_NAME}.tar.gz
         - tar czf ${RELEASE_ARCHIVE} ${RELEASE_DIR}
 
