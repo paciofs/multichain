@@ -99,16 +99,23 @@ jobs:
 
       after_success:
         # figure out date of last upstream commit to this branch
-        - LAST_MERGE=$(git log --merges --max-count=1 ${TRAVIS_BRANCH} --format=%ad)
-        - LAST_UPSTREAM=$(git log --before="${LAST_MERGE}" --skip=1 --max-count=1 --format=%ai ${TRAVIS_BRANCH})
-        - LAST_UPSTREAM=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_UPSTREAM}" "+%Y%m%dT%H%M%S")
+        - LAST_MERGE_HASH=$(git log --merges --max-count=1 ${TRAVIS_BRANCH} --format=%P | cut -f2 -d' ')
+        - LAST_MERGE_DATE_ISO=$(git show ${LAST_MERGE_HASH} --format=%ai --no-patch)
+        - LAST_MERGE_DATE=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_MERGE_DATE_ISO}" "+%Y%m%dT%H%M%S")
 
         # this names the deployed tag and enables the deploy phase
-        - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_UPSTREAM}
+        - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_MERGE_DATE}
 
       before_deploy:
-        # pack binaries
+        # release folder
         - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+
+        # generate small README
+        - LAST_UPSTREAM_INFO=$(git show ${LAST_MERGE_HASH} --format=oneline --no-patch)
+        - echo "Build of ${LAST_UPSTREAM_INFO} (${LAST_MERGE_DATE_ISO})" > multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}/README
+        - echo "https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}" >> multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}/README
+
+        # pack binaries
         - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
         - cp ./src/multichain-util ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
         - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
@@ -116,6 +123,8 @@ jobs:
         - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
 
       deploy:
+        name: "${TRAVIS_BRANCH} from ${LAST_MERGE_DATE_ISO}"
+        body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}"
         # deploy as GitHub release
         provider: releases
         # unencrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
