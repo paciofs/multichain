@@ -1,0 +1,102 @@
+os: osx
+osx_image: xcode10.1
+
+# do not build tagged commits
+# this way we avoid rebuilding upon successful deployment (see below)
+if: tag IS blank
+
+language: cpp
+
+addons:
+  homebrew:
+    packages:
+      - autoconf
+      - automake
+      - berkeley-db4
+      - boost
+      - ccache
+      - libtool
+      - openssl
+      - pkg-config
+      - rename
+
+install:
+  # it is insufficient to only install boost@1.57 in the first place
+  # reinstallation is necessary for some reason
+  - brew uninstall --ignore-dependencies boost
+  - brew install boost@1.57
+  - brew link boost@1.57 --force
+
+  # hide dynamic libraries from the build system so we get a static build
+  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
+  - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
+
+  # reinstall OpenSSL, but with static libraries only
+  - sed -i '' 's/^    shared$/    no-shared/' /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/openssl.rb
+  - brew reinstall openssl --build-from-source
+  - export CPPFLAGS=-I/usr/local/opt/openssl/include
+  - export LDFLAGS=-L/usr/local/opt/openssl/lib
+
+  # disable all warnings to reduce build verbosity
+  - export CXXFLAGS=-w
+  - ./autogen.sh
+  - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no --with-boost=/usr/local/opt/boost@1.57
+  - make -j2
+
+script:
+  # tiny test
+  - mkdir /tmp/mc-test
+  - ./src/multichain-util create test 10011 -datadir=/tmp/mc-test -rpcpassword=rpcpass
+  - ./src/multichaind test 10011 -daemon -datadir=/tmp/mc-test -pid=/tmp/mc-test/test/multichain.pid
+  - ./src/multichain-cli test -datadir=/tmp/mc-test getblockchaininfo
+  - kill $(< /tmp/mc-test/test/multichain.pid)
+
+after_success:
+  # figure out date of last upstream commit to this branch
+  - LAST_MERGE_HASH=$(git log --merges --max-count=1 ${TRAVIS_BRANCH} --format=%P | cut -f2 -d' ')
+  - LAST_MERGE_DATE_ISO=$(git show ${LAST_MERGE_HASH} --format=%ai --no-patch)
+  - LAST_MERGE_DATE=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_MERGE_DATE_ISO}" "+%Y%m%dT%H%M%S")
+
+  # this names the deployed tag and enables the deploy phase
+  - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_MERGE_DATE}
+
+before_deploy:
+  # release directory
+  - RELEASE_DIR=./multichain-${TRAVIS_BRANCH}
+  - mkdir ${RELEASE_DIR}
+
+  # generate small README
+  - LAST_UPSTREAM_INFO=$(git show ${LAST_MERGE_HASH} --format=oneline --no-patch)
+  - echo "Build of ${TRAVIS_BRANCH} at ${LAST_UPSTREAM_INFO} (${LAST_MERGE_DATE_ISO})" > ${RELEASE_DIR}/README
+  - echo "https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}" >> ${RELEASE_DIR}/README
+
+  # copy binaries
+  - cp ./src/multichain-cli ${RELEASE_DIR}
+  - cp ./src/multichain-util ${RELEASE_DIR}
+  - cp ./src/multichaind ${RELEASE_DIR}
+  - cp ./src/multichaind-cold ${RELEASE_DIR}
+
+  # name and build the archive
+  - LAST_MERGE_HASH_SHORT=$(git show $LAST_MERGE_HASH --format=%p --no-patch)
+  - RELEASE_ARCHIVE=./multichain-${TRAVIS_BRANCH}-${LAST_MERGE_HASH_SHORT}-${TRAVIS_OS_NAME}.tar.gz
+  - tar czf ${RELEASE_ARCHIVE} ${RELEASE_DIR}
+
+deploy:
+  name: "${TRAVIS_BRANCH} at ${LAST_MERGE_HASH_SHORT}"
+  body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}"
+  # deploy as GitHub release
+  provider: releases
+  # unencrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
+  # this means you have to answer `no` when prompted whether to encrypt the API key
+  # instead, add an environment variable `GITHUB_OAUTH_TOKEN` to your repository settings in Travis,
+  # and select its value not to be displayed in the build log
+  api_key: ${GITHUB_OAUTH_TOKEN}
+  file: ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz
+  # otherwise Travis would clean out generated archive
+  skip_cleanup: true
+  # for the same tag the file can be overwritten
+  overwrite: true
+  on:
+    repo: ${TRAVIS_REPO_SLUG}
+    # fulfilled because we set TRAVIS_TAG
+    tags: true
