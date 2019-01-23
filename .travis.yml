@@ -102,7 +102,7 @@ jobs:
         - git remote add upstream https://github.com/MultiChain/multichain.git
         - git fetch upstream
 
-        # number of commits that have occurred since we last merged, take the oldest one (if any)
+        # number of commits that have occurred since we last merged
         - MISSED_UPSTREAM_COMMITS=$(git rev-list --count ${TRAVIS_BRANCH}..upstream/${TRAVIS_BRANCH})
 
         # skip this many commits (may be zero) in order to get the hash of the last upstream commit we merged
