@@ -95,7 +95,7 @@ jobs:
         - ./src/multichain-util create test 20006 -datadir=/tmp/mc-test -rpcpassword=rpcpass
         - ./src/multichaind test 20006 -daemon -datadir=/tmp/mc-test -pid=/tmp/mc-test/test/multichain.pid
         - ./src/multichain-cli test -datadir=/tmp/mc-test getblockchaininfo
-        - kill $(< /tmp/mc-test/test/multichain.pid)
+        - ./src/multichain-cli test -datadir=/tmp/mc-test stop
 
       after_success:
         # figure out date of current commit
