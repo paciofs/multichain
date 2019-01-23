@@ -61,23 +61,28 @@ after_success:
   - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_MERGE_DATE}
 
 before_deploy:
-  # release folder
-  - mkdir multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  # release directory
+  - RELEASE_DIR=./multichain-${TRAVIS_BRANCH}
+  - mkdir ${RELEASE_DIR}
 
   # generate small README
   - LAST_UPSTREAM_INFO=$(git show ${LAST_MERGE_HASH} --format=oneline --no-patch)
-  - echo "Build of ${LAST_UPSTREAM_INFO} (${LAST_MERGE_DATE_ISO})" > multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}/README
-  - echo "https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}" >> multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}/README
+  - echo "Build of ${TRAVIS_BRANCH} at ${LAST_UPSTREAM_INFO} (${LAST_MERGE_DATE_ISO})" > ${RELEASE_DIR}/README
+  - echo "https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}" >> ${RELEASE_DIR}/README
 
-  # pack binaries
-  - cp ./src/multichain-cli ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - cp ./src/multichain-util ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - cp ./src/multichaind ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - cp ./src/multichaind-cold ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
-  - tar czf multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}.tar.gz ./multichain-${TRAVIS_BRANCH}-${TRAVIS_OS_NAME}
+  # copy binaries
+  - cp ./src/multichain-cli ${RELEASE_DIR}
+  - cp ./src/multichain-util ${RELEASE_DIR}
+  - cp ./src/multichaind ${RELEASE_DIR}
+  - cp ./src/multichaind-cold ${RELEASE_DIR}
+
+  # name and build the archive
+  - LAST_MERGE_HASH_SHORT=$(git show $LAST_MERGE_HASH --format=%p --no-patch)
+  - RELEASE_ARCHIVE=./multichain-${TRAVIS_BRANCH}-${LAST_MERGE_HASH_SHORT}-${TRAVIS_OS_NAME}.tar.gz
+  - tar czf ${RELEASE_ARCHIVE} ${RELEASE_DIR}
 
 deploy:
-  name: "${TRAVIS_BRANCH} from ${LAST_MERGE_DATE_ISO}"
+  name: "${TRAVIS_BRANCH} at ${LAST_MERGE_HASH_SHORT}"
   body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}"
   # deploy as GitHub release
   provider: releases
