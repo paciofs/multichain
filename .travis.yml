@@ -99,12 +99,15 @@ jobs:
 
       after_success:
         # figure out date of last upstream commit to this branch
-        - LAST_MERGE_HASH=$(git log --merges --max-count=1 ${TRAVIS_BRANCH} --format=%P | cut -f2 -d' ')
-        - LAST_MERGE_DATE_ISO=$(git show ${LAST_MERGE_HASH} --format=%ai --no-patch)
-        - LAST_MERGE_DATE=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_MERGE_DATE_ISO}" "+%Y%m%dT%H%M%S")
+        - git remote add upstream https://github.com/MultiChain/multichain.git
+        - git fetch upstream
+
+        - LAST_UPSTREAM_COMMIT_HASH=$(git log --format=%P --max-count=1 upstream/${TRAVIS_BRANCH} | cut -f2 -d' ')
+        - LAST_UPSTREAM_COMMIT_DATE_ISO=$(git show ${LAST_UPSTREAM_COMMIT_HASH} --format=%ai --no-patch)
+        - LAST_UPSTREAM_COMMIT_DATE=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S %z" "${LAST_UPSTREAM_COMMIT_DATE_ISO}" "+%Y%m%dT%H%M%S")
 
         # this names the deployed tag and enables the deploy phase
-        - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_MERGE_DATE}
+        - export TRAVIS_TAG=${TRAVIS_BRANCH}-${LAST_UPSTREAM_COMMIT_DATE}
 
       before_deploy:
         # release directory
@@ -112,9 +115,9 @@ jobs:
         - mkdir ${RELEASE_DIR}
 
         # generate small README
-        - LAST_UPSTREAM_INFO=$(git show ${LAST_MERGE_HASH} --format=oneline --no-patch)
-        - echo "Build of ${TRAVIS_BRANCH} at ${LAST_UPSTREAM_INFO} (${LAST_MERGE_DATE_ISO})" > ${RELEASE_DIR}/README
-        - echo "https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}" >> ${RELEASE_DIR}/README
+        - LAST_UPSTREAM_COMMIT_INFO=$(git show ${LAST_UPSTREAM_COMMIT_HASH} --format=oneline --no-patch)
+        - echo "Build of ${TRAVIS_BRANCH} at ${LAST_UPSTREAM_COMMIT_INFO} (${LAST_UPSTREAM_COMMIT_DATE_ISO})" > ${RELEASE_DIR}/README
+        - echo "https://github.com/MultiChain/multichain/tree/${LAST_UPSTREAM_COMMIT_HASH}" >> ${RELEASE_DIR}/README
 
         # copy binaries
         - cp ./src/multichain-cli ${RELEASE_DIR}
@@ -123,13 +126,13 @@ jobs:
         - cp ./src/multichaind-cold ${RELEASE_DIR}
 
         # name and build the archive
-        - LAST_MERGE_HASH_SHORT=$(git show $LAST_MERGE_HASH --format=%p --no-patch)
-        - RELEASE_ARCHIVE=./multichain-${TRAVIS_BRANCH}-${LAST_MERGE_HASH_SHORT}-${TRAVIS_OS_NAME}.tar.gz
+        - LAST_UPSTREAM_COMMIT_HASH_SHORT=$(git show $LAST_UPSTREAM_COMMIT_HASH --format=%p --no-patch)
+        - RELEASE_ARCHIVE=./multichain-${TRAVIS_BRANCH}-${LAST_UPSTREAM_COMMIT_HASH_SHORT}-${TRAVIS_OS_NAME}.tar.gz
         - tar czf ${RELEASE_ARCHIVE} ${RELEASE_DIR}
 
       deploy:
-        name: "${TRAVIS_BRANCH} at ${LAST_MERGE_HASH_SHORT}"
-        body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_MERGE_HASH}"
+        name: "${TRAVIS_BRANCH} at ${LAST_UPSTREAM_COMMIT_HASH_SHORT}"
+        body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_UPSTREAM_COMMIT_HASH}"
         # deploy as GitHub release
         provider: releases
         # unencrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
