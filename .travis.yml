@@ -136,7 +136,7 @@ jobs:
 
         # create md5 for archive
         - RELEASE_ARCHIVE_MD5=${RELEASE_ARCHIVE}.md5
-        - md5 -q ${RELEASE_ARCHIVE} > ${RELEASE_ARCHIVE_MD5}
+        - md5 -q ${RELEASE_ARCHIVE} | tee ${RELEASE_ARCHIVE_MD5}
 
       deploy:
         name: "${TRAVIS_BRANCH} at ${LAST_UPSTREAM_COMMIT_HASH_SHORT}"
