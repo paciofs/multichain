@@ -102,7 +102,7 @@ before_deploy:
 
 deploy:
   name: "${TRAVIS_BRANCH} at ${LAST_UPSTREAM_COMMIT_HASH_SHORT}"
-  body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_UPSTREAM_COMMIT_HASH}"
+        body: "Build of https://github.com/MultiChain/multichain/tree/${LAST_UPSTREAM_COMMIT_HASH_SHORT} (build log available at ${TRAVIS_BUILD_WEB_URL})"
   # deploy as GitHub release
   provider: releases
   # unencrypted GitHub OAuth token, generated using `travis setup releases` and set in Travis settings
