@@ -141,10 +141,7 @@ jobs:
         - shasum -a 256 ${RELEASE_ARCHIVE} | cut -d ' ' -f 1 > ${RELEASE_ARCHIVE_SHA256}
 
         # print information to build log for possible later verification
-        - echo "Deploying ${RELEASE_ARCHIVE}"
-        - echo "Size   $(stat -f "%z" ${RELEASE_ARCHIVE})"
-        - echo "SHA1   $(< ${RELEASE_ARCHIVE_SHA1})"
-        - echo "SHA256 $(< ${RELEASE_ARCHIVE_SHA256})"
+        - echo -e "Deploying ${RELEASE_ARCHIVE}\nSize   $(stat -f "%z" ${RELEASE_ARCHIVE})\nSHA1   $(< ${RELEASE_ARCHIVE_SHA1})\nSHA256 $(< ${RELEASE_ARCHIVE_SHA256})"
 
       deploy:
         name: "${TRAVIS_BRANCH} at ${LAST_UPSTREAM_COMMIT_HASH_SHORT}"
