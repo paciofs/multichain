@@ -88,9 +88,17 @@ before_deploy:
   - RELEASE_ARCHIVE=./multichain-${TRAVIS_BRANCH}-${LAST_UPSTREAM_COMMIT_HASH_SHORT}-${TRAVIS_OS_NAME}.tar.gz
   - tar czf ${RELEASE_ARCHIVE} ${RELEASE_DIR}
 
-  # create md5 for archive
-  - RELEASE_ARCHIVE_MD5=${RELEASE_ARCHIVE}.md5
-  - md5 -q ${RELEASE_ARCHIVE} > ${RELEASE_ARCHIVE_MD5}
+  # create checksums for archive
+  - RELEASE_ARCHIVE_SHA1=${RELEASE_ARCHIVE}.sha1
+  - shasum -a 1 ${RELEASE_ARCHIVE} | cut -d ' ' -f 1 > ${RELEASE_ARCHIVE_SHA1}
+  - RELEASE_ARCHIVE_SHA256=${RELEASE_ARCHIVE}.sha256
+  - shasum -a 256 ${RELEASE_ARCHIVE} | cut -d ' ' -f 1 > ${RELEASE_ARCHIVE_SHA256}
+
+  # print information to build log for possible later verification
+  - echo "Deploying ${RELEASE_ARCHIVE}"
+  - echo "Size   $(stat -f "%z" ${RELEASE_ARCHIVE})"
+  - echo "SHA1   $(< ${RELEASE_ARCHIVE_SHA1})"
+  - echo "SHA256 $(< ${RELEASE_ARCHIVE_SHA256})"
 
 deploy:
   name: "${TRAVIS_BRANCH} at ${LAST_UPSTREAM_COMMIT_HASH_SHORT}"
@@ -104,7 +112,8 @@ deploy:
   api_key: ${GITHUB_OAUTH_TOKEN}
   file:
     - ${RELEASE_ARCHIVE}
-    - ${RELEASE_ARCHIVE_MD5}
+    - ${RELEASE_ARCHIVE_SHA1}
+    - ${RELEASE_ARCHIVE_SHA256}
   # otherwise Travis would clean out generated archive
   skip_cleanup: true
   # for the same tag the file can be overwritten
