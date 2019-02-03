@@ -59,8 +59,7 @@ jobs:
             - rename
 
       install:
-        # it is insufficient to only install boost@1.57 in the first place
-        # reinstallation is necessary for some reason
+        # uninstall pre-installed boost and use 1.57
         - brew uninstall --ignore-dependencies boost
         - brew install boost@1.57
         - brew link boost@1.57 --force
@@ -74,8 +73,8 @@ jobs:
         - python ./depends/v8_data_lib.py --multichain $(pwd)
 
         # hide dynamic libraries from the build system so we get a static build
-        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost/lib/*.dylib
-        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db@4/lib/*.dylib
+        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/boost\@1.57/lib/*.dylib
+        - rename -e 's/.dylib/.dylib.hidden/' /usr/local/opt/berkeley-db\@4/lib/*.dylib
 
         # reinstall OpenSSL AFTER reinstalling python, but with static libraries only
         - sed -i '' 's/^    shared$/    no-shared/' /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/openssl.rb
@@ -86,7 +85,7 @@ jobs:
         # disable all warnings to reduce build verbosity
         - export CXXFLAGS=-w
         - ./autogen.sh
-        - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no --with-boost=/usr/local/opt/boost@1.57
+        - ./configure --with-gui=no --with-libs=no --with-miniupnpc=no --with-boost=/usr/local/opt/boost\@1.57
         - make -j2
 
       script:
