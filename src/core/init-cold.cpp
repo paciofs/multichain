@@ -1,7 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin developers
 // Original code was distributed under the MIT software license.
-// Copyright (c) 2014-2017 Coin Sciences Ltd
+// Copyright (c) 2014-2019 Coin Sciences Ltd
 // MultiChain code distributed under the GPLv3 license, see COPYING file.
 
 #if defined(HAVE_CONFIG_H)
@@ -440,11 +440,8 @@ bool AppInit2_Cold(boost::thread_group& threadGroup,int OutputPipe)
             currentwalletdatversion=GetWalletDatVersion(pathWalletDat.string());
             boost::filesystem::path pathWallet=GetDataDir() / "wallet";
 
-            if(currentwalletdatversion == 2)
-            {
-            }
             LogPrintf("Wallet file exists. WalletDBVersion: %d.\n", currentwalletdatversion);
-            if( (currentwalletdatversion == 3) && (GetArg("-walletdbversion",0) != 3) )
+            if( (currentwalletdatversion == 3) && (GetArg("-walletdbversion",MC_TDB_WALLET_VERSION) != 3) )
             {
                 return InitError(_("Wallet downgrade is not allowed"));                                                        
             }
@@ -537,6 +534,8 @@ bool AppInit2_Cold(boost::thread_group& threadGroup,int OutputPipe)
 //            if (!CWalletDB::Recover(bitdbwrap, strWalletFile, true))
             if(!WalletDBRecover(bitdbwrap,strWalletFile,true))
                 return false;
+            sprintf(bufOutput,"\nTo work properly with salvaged addresses, you have to call importaddress API and restart MultiChain with -rescan\n\n");
+            bytes_written=write(OutputPipe,bufOutput,strlen(bufOutput));                
         }
 
         if (filesystem::exists(GetDataDir() / strWalletFile))
@@ -677,8 +676,6 @@ bool AppInit2_Cold(boost::thread_group& threadGroup,int OutputPipe)
         pwalletTxsMain=new mc_WalletTxs;
         mc_TxEntity entity;
         boost::filesystem::path pathWallet=GetDataDir() / "wallet";
-        bool upgrade_wallet_dat=false;
-        
         if(mc_gState->m_WalletMode == MC_WMD_NONE)
         {
             if(boost::filesystem::exists(pathWallet))
@@ -690,10 +687,6 @@ bool AppInit2_Cold(boost::thread_group& threadGroup,int OutputPipe)
         {
             if(!boost::filesystem::exists(pathWallet))
             {
-                if(mc_gState->m_Permissions->m_Block >= 0)
-                {
-                    upgrade_wallet_dat=true;
-                }
                 if((mc_gState->m_Permissions->m_Block >= 0) && !GetBoolArg("-rescan", false))
                 {
                     if(mc_gState->m_WalletMode == MC_WMD_AUTO)
@@ -710,9 +703,13 @@ bool AppInit2_Cold(boost::thread_group& threadGroup,int OutputPipe)
                 {
                     new_wallet_txs=true;
                     if(mc_gState->m_WalletMode == MC_WMD_AUTO)
-                    {
-                        mc_gState->m_WalletMode = MC_WMD_TXS | MC_WMD_ADDRESS_TXS | MC_WMD_FLAT_DAT_FILE;
+                    {                        
+                        mc_gState->m_WalletMode = MC_WMD_TXS | MC_WMD_ADDRESS_TXS;
                         wallet_mode=MC_TDB_WALLET_VERSION;
+                        if(wallet_mode > 2)
+                        {
+                            mc_gState->m_WalletMode |= MC_WMD_FLAT_DAT_FILE;
+                        }
                     }
                 }
             }

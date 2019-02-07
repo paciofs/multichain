@@ -1,7 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin developers
 // Original code was distributed under the MIT software license.
-// Copyright (c) 2014-2017 Coin Sciences Ltd
+// Copyright (c) 2014-2019 Coin Sciences Ltd
 // MultiChain code distributed under the GPLv3 license, see COPYING file.
 
 #if defined(HAVE_CONFIG_H)
@@ -1166,7 +1166,7 @@ bool AppInit2(boost::thread_group& threadGroup,int OutputPipe)
             {
                 return InitError(_("wallet.dat corrupted. Please remove it and restart."));            
             }
-            return InitError(_("wallet.dat corrupted. Please try running MultiChain with -salvagewallet."));                            
+            return InitError(_("wallet.dat is partially corrupted. Please try running MultiChain with -salvagewallet."));                            
         }
 
         if(!pwalletMain->vchDefaultKey.IsValid())

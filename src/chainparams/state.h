@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 Coin Sciences Ltd
+// Copyright (c) 2014-2019 Coin Sciences Ltd
 // MultiChain code distributed under the GPLv3 license, see COPYING file.
 
 #ifndef MULTICHAIN_STATE_H
@@ -152,6 +152,7 @@ typedef struct mc_Features
     int FixedIn20006();
     int NonceInMinerSignature();
     int ImplicitConnectPermission();
+    int LicenseTokens();
 } mc_Features;
 
 typedef struct mc_BlockHeaderInfo

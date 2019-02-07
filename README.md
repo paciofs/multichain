@@ -3,7 +3,7 @@ MultiChain
 
 [MultiChain](http://www.multichain.com/) is an open source platform for private blockchains, which offers a rich set of features including extensive configurability, rapid deployment, permissions management, native assets and data streams. Although it is designed to enable private blockchains, MultiChain provides maximal compatibility with the bitcoin ecosystem, including the peer-to-peer protocol, transaction/block formats and [Bitcoin Core](https://bitcoin.org/en/bitcoin-core/) APIs/runtime parameters.
 
-    Copyright (c) 2014-2017 Coin Sciences Ltd
+    Copyright (c) 2014-2019 Coin Sciences Ltd
     License: GNU General Public License version 3, see COPYING
 
     Portions copyright (c) 2009-2016 The Bitcoin Core developers
@@ -39,18 +39,15 @@ Clone MultiChain
 
     git clone https://github.com/MultiChain/multichain.git
 
-Prepare to build V8
+Prepare to download or build V8
 -------------------
 
     cd multichain
     set MULTICHAIN_HOME=$(pwd)
     mkdir v8build
     cd v8build
-
-Build Google's V8 JavaScript engine locally
--------------------------
-
-Please use the instructions in [V8.md](/V8.md/) to build and install V8 for use by MultiChain.
+    
+You can use pre-built headers and binaries of Google's V8 JavaScript engine by downloading and expanding [linux-v8.tar.gz](https://github.com/MultiChain/multichain-binaries/raw/master/linux-v8.tar.gz) in the current directory. If, on the other hand, you prefer to build the V8 component yourself, please follow the instructions in [V8.md](/V8.md/).
 
 Compile MultiChain for Ubuntu (64-bit)
 -----------------------------
