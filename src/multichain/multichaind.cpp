@@ -54,6 +54,20 @@ bool mc_DoesParentDataDirExist()
     return true;
 }
 
+bool mc_DoesParentLogDirExist()
+{
+    if (mapArgs.count("-logdir"))
+    {
+        boost::filesystem::path path=boost::filesystem::system_complete(mapArgs["-logdir"]);
+        if (!boost::filesystem::is_directory(path)) 
+        {
+            return false;
+        }    
+    }
+    return true;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Start
@@ -103,6 +117,11 @@ bool AppInit(int argc, char* argv[])
         return false;        
     }
         
+    if(!mc_DoesParentLogDirExist())
+    {
+        fprintf(stderr,"\nError: Log directory %s needs to exist before calling multichaind. Exiting...\n\n",mapArgs["-logdir"].c_str());
+        return false;        
+    }
     
     pEF=new mc_EnterpriseFeatures;
     if(pEF->Initialize(mc_gState->m_Params->NetworkName(),0))
@@ -111,11 +130,11 @@ bool AppInit(int argc, char* argv[])
         delete mc_gState;
         return false;        
     }
-    
+
     string edition=pEF->ENT_Edition();
     if(edition.size())
     {
-        edition=", "+edition+" Edition";
+        edition=edition+" Edition, ";
     }
     
     
@@ -127,7 +146,7 @@ bool AppInit(int argc, char* argv[])
         mc_gState->m_Params->HasOption("-version") || 
         (mc_gState->m_Params->NetworkName() == NULL))
     {
-        fprintf(stdout,"\nMultiChain %s Daemon%s (protocol %s)\n\n",mc_BuildDescription(mc_gState->GetNumericVersion()).c_str(),edition.c_str(),mc_SupportedProtocols().c_str());
+        fprintf(stdout,"\nMultiChain %s Daemon (%sprotocol %s)\n\n",mc_BuildDescription(mc_gState->GetNumericVersion()).c_str(),edition.c_str(),mc_SupportedProtocols().c_str());
         std::string strUsage = "";
         if (mc_gState->m_Params->HasOption("-version"))
         {
@@ -150,7 +169,7 @@ bool AppInit(int argc, char* argv[])
 
     if(!GetBoolArg("-shortoutput", false))
     {
-        fprintf(stdout,"\nMultiChain %s Daemon%s (latest protocol %d)\n\n",mc_BuildDescription(mc_gState->GetNumericVersion()).c_str(),edition.c_str(),mc_gState->GetProtocolVersion());
+        fprintf(stdout,"\nMultiChain %s Daemon (%slatest protocol %d)\n\n",mc_BuildDescription(mc_gState->GetNumericVersion()).c_str(),edition.c_str(),mc_gState->GetProtocolVersion());
     }
     
     pipes[1]=STDOUT_FILENO;
@@ -217,6 +236,9 @@ bool AppInit(int argc, char* argv[])
 
             mc_gState->m_Params->Parse(argc, argv, MC_ETP_DAEMON);
             mc_CheckDataDirInConfFile();
+            
+            pEF=new mc_EnterpriseFeatures;
+            pEF->Initialize(mc_gState->m_Params->NetworkName(),0);
         }
 #endif
         

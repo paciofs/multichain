@@ -51,7 +51,6 @@ EXTRA_LIBRARIES = \
   libbitcoin_util.a \
   libbitcoin_common.a \
   univalue/libbitcoin_univalue.a \
-  libbitcoin_enterprise.a \
   libbitcoin_server.a \
   libbitcoin_cli.a
 if ENABLE_WALLET
@@ -180,8 +179,10 @@ obj/build.h: FORCE
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
 if ENABLE_ENTERPRISE
--include enterprise/Makefile.am
+EXTRA_LIBRARIES += libbitcoin_enterprise.a
+include entMakefile.am
 else
+EXTRA_LIBRARIES += libbitcoin_enterprise.a
 libbitcoin_enterprise_a_CPPFLAGS = $(BITCOIN_INCLUDES)
 libbitcoin_enterprise_a_SOURCES = \
   community/community.cpp \
@@ -471,11 +472,11 @@ libbitcoin_v8_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(V8_INCLUDE)
 
 # multichaind binary #
 multichaind_LDADD = \
-  $(LIBBITCOIN_ENTERPRISE) \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UNIVALUE) \
   $(LIBBITCOIN_WALLET) \
+  $(LIBBITCOIN_ENTERPRISE) \
   $(LIBBITCOIN_MULTICHAIN) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO) \
@@ -515,11 +516,11 @@ endif
 
 # multichaind-cold binary #
 multichaind_cold_LDADD = \
-  $(LIBBITCOIN_ENTERPRISE) \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UNIVALUE) \
   $(LIBBITCOIN_WALLET) \
+  $(LIBBITCOIN_ENTERPRISE) \
   $(LIBBITCOIN_MULTICHAIN) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO) \

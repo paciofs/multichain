@@ -216,9 +216,9 @@ void Shutdown()
     if (pwalletMain)
         bitdbwrap.Flush(true);
 #endif
-#ifndef WIN32
+//#ifndef WIN32
     boost::filesystem::remove(GetPidFile());
-#endif
+//#endif
     UnregisterAllValidationInterfaces();
 #ifdef ENABLE_WALLET
     delete pwalletMain;
@@ -463,6 +463,7 @@ std::string HelpMessage(HelpMessageMode mode)                                   
     }
     strUsage += "  -minrelaytxfee=<amt>   " + strprintf(_("Fees (in BTC/Kb) smaller than this are considered zero fee for relaying (default: %s)"), FormatMoney(::minRelayTxFee.GetFeePerK())) + "\n";
     strUsage += "  -printtoconsole        " + _("Send trace/debug info to console instead of debug.log file") + "\n";
+    strUsage += "  -logdir                " + _("Send trace/debug info to specified directory") + "\n";
     if (GetBoolArg("-help-debug", false))
     {
         strUsage += "  -printpriority         " + strprintf(_("Log transaction priority and fee per kB when mining blocks (default: %u)"), 0) + "\n";
@@ -938,9 +939,9 @@ bool AppInit2(boost::thread_group& threadGroup,int OutputPipe)
 #endif
 /* MCHN END */
     
-#ifndef WIN32
-    CreatePidFile(GetPidFile(), getpid());
-#endif
+//#ifndef WIN32
+    CreatePidFile(GetPidFile(), __US_GetPID());
+//#endif
     if (GetBoolArg("-shrinkdebugfile", !fDebug))
         ShrinkDebugFile();
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
