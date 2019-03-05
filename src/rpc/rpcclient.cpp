@@ -23,6 +23,204 @@ public:
     int paramIdx;                      //! 0-based idx of param to convert
 };
 
+static const std::string vAPINames[] =
+{
+"addmultisigaddress",
+"addnode",
+"addresses-all",
+"appendbinarycache",
+"appendrawchange",
+"appendrawdata",
+"appendrawexchange",
+"appendrawmetadata",
+"appendrawtransaction",
+"approvefrom",
+"backupwallet",
+"clearmempool",
+"combineunspent",
+"completerawexchange",
+"create",
+"createbinarycache",
+"createfrom",
+"createkeypairs",
+"createmultisig",
+"createrawexchange",
+"createrawsendfrom",
+"createrawtransaction",
+"data-all",
+"data-with",
+"debug",
+"decoderawexchange",
+"decoderawtransaction",
+"decodescript",
+"deletebinarycache",
+"disablerawtransaction",
+"dumpprivkey",
+"dumpwallet",
+"encryptwallet",
+"estimatefee",
+"estimatepriority",
+"filters",
+"getaccount",
+"getaccountaddress",
+"getaddednodeinfo",
+"getaddressbalances",
+"getaddresses",
+"getaddressesbyaccount",
+"getaddresstransaction",
+"getassetbalances",
+"getassetinfo",
+"getassettransaction",
+"getbalance",
+"getbestblockhash",
+"getblock",
+"getblockchaininfo",
+"getblockchainparams",
+"getblockcount",
+"getblockhash",
+"getblocktemplate",
+"getchaintips",
+"getchunkqueueinfo",
+"getchunkqueuetotals",
+"getconnectioncount",
+"getdifficulty",
+"getfilterassetbalances",
+"getfiltercode",
+"getfilterstreamitem",
+"getfiltertransaction",
+"getfiltertxid",
+"getfiltertxinput",
+"getgenerate",
+"gethashespersec",
+"getinfo",
+"getlastblockinfo",
+"getmempoolinfo",
+"getmininginfo",
+"getmultibalances",
+"getnettotals",
+"getnetworkhashps",
+"getnetworkinfo",
+"getnewaddress",
+"getpeerinfo",
+"getrawchangeaddress",
+"getrawmempool",
+"getrawtransaction",
+"getreceivedbyaccount",
+"getreceivedbyaddress",
+"getruntimeparams",
+"getstreaminfo",
+"getstreamitem",
+"getstreamkeysummary",
+"getstreampublishersummary",
+"gettotalbalances",
+"gettransaction",
+"gettxout",
+"gettxoutdata",
+"gettxoutsetinfo",
+"getunconfirmedbalance",
+"getwalletinfo",
+"getwallettransaction",
+"grant",
+"grantfrom",
+"grantwithdata",
+"grantwithdatafrom",
+"grantwithmetadata",
+"grantwithmetadatafrom",
+"help",
+"importaddress",
+"importprivkey",
+"importwallet",
+"invalidateblock",
+"issue",
+"issuefrom",
+"issuemore",
+"issuemorefrom",
+"keypoolrefill",
+"listaccounts",
+"listaddresses",
+"listaddressgroupings",
+"listaddresstransactions",
+"listassets",
+"listassettransactions",
+"listblocks",
+"listlockunspent",
+"listpermissions",
+"listreceivedbyaccount",
+"listreceivedbyaddress",
+"listsinceblock",
+"liststreamblockitems",
+"liststreamfilters",
+"liststreamitems",
+"liststreamkeyitems",
+"liststreamkeys",
+"liststreampublisheritems",
+"liststreampublishers",
+"liststreamqueryitems",
+"liststreams",
+"liststreamtxitems",
+"listtransactions",
+"listtxfilters",
+"listunspent",
+"listupgrades",
+"listwallettransactions",
+"lockunspent",
+"move",
+"pause",
+"ping",
+"preparelockunspent",
+"preparelockunspentfrom",
+"prioritisetransaction",
+"publish",
+"publishfrom",
+"publishmulti",
+"publishmultifrom",
+"reconsiderblock",
+"resendwallettransactions",
+"resume",
+"revoke",
+"revokefrom",
+"runstreamfilter",
+"runtxfilter",
+"send",
+"sendasset",
+"sendassetfrom",
+"sendassettoaddress",
+"sendfrom",
+"sendfromaccount",
+"sendfromaddress",
+"sendmany",
+"sendrawtransaction",
+"sendtoaddress",
+"sendwithdata",
+"sendwithdatafrom",
+"sendwithmetadata",
+"sendwithmetadatafrom",
+"setaccount",
+"setfilterparam",
+"setgenerate",
+"setlastblock",
+"setmocktime",
+"setruntimeparam",
+"settxfee",
+"signmessage",
+"signrawtransaction",
+"stop",
+"storechunk",
+"submitblock",
+"subscribe",
+"trimsubscribe",
+"teststreamfilter",
+"testtxfilter",
+"unsubscribe",
+"validateaddress",
+"verifychain",
+"verifymessage",
+"verifypermission",
+"walletlock",
+"walletpassphrase",
+"walletpassphrasechange"    
+};
+
 static const CRPCConvertParam vRPCConvertParams[] =
 {
     { "stop", 0 },
@@ -184,6 +382,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "create", 3 },                                                            
     { "subscribe", 0 },
     { "subscribe", 1 },
+    { "trimsubscribe", 0 },
     { "unsubscribe", 0 },
     { "unsubscribe", 1 },
     { "listassettransactions", 1 },
@@ -313,6 +512,30 @@ public:
     }
 };
 
+class CRPCNameTable
+{
+private:
+    std::set<std::string > members;
+
+public:
+    CRPCNameTable();
+
+    bool found(const std::string& method) {
+        return (members.count(method) > 0);
+    }
+};
+
+CRPCNameTable::CRPCNameTable()
+{
+    const unsigned int n_elem =
+        (sizeof(vAPINames) / sizeof(vAPINames[0]));
+
+    for (unsigned int i = 0; i < n_elem; i++) {
+        members.insert(vAPINames[i]);
+    }
+}
+
+
 CRPCConvertTable::CRPCConvertTable()
 {
     const unsigned int n_elem =
@@ -325,6 +548,7 @@ CRPCConvertTable::CRPCConvertTable()
 }
 
 static CRPCConvertTable rpcCvtTable;
+static CRPCNameTable rpcNamTable;
 
 /* MCHN START */
 
@@ -356,6 +580,7 @@ static const CRPCConvertParamMayBeString vRPCConvertParamsMayBeString[] =
     { "importaddress", 0 },
     { "importprivkey", 0 },
     { "subscribe", 0 },
+    { "trimsubscribe", 0 },
     { "unsubscribe", 0 },
     { "liststreamkeys", 1 },
     { "liststreampublishers", 1 },
@@ -402,6 +627,12 @@ CRPCConvertTableMayBeString::CRPCConvertTableMayBeString()
 }
 
 static CRPCConvertTableMayBeString rpcCvtTableMayBeString;
+
+
+bool HaveAPIWithThisName(const std::string &strMethod)
+{
+    return rpcNamTable.found(strMethod);
+}
 
 /* MCHN END */
 

@@ -7,6 +7,7 @@
 #include "core/main.h"
 #include "rpc/rpcserver.h"
 #include "rpc/rpcutils.h"
+#include "community/community.h"
 
 std::string HelpRequiringPassphraseWrapper()
 {
@@ -3552,7 +3553,7 @@ void mc_InitRPCHelpMap15()
         ));
     
     mapHelpStrings.insert(std::make_pair("subscribe",
-            "subscribe entity-identifier(s) ( rescan )\n"
+            "subscribe entity-identifier(s) ( rescan" + pEF->ENT_TextConstant("help-subscribe-parameters") + " )\n"
             "\nSubscribes to the stream.\n"
             "\nArguments:\n"
             "1. \"stream-identifier\"              (string, required) Stream identifier - one of: create txid, stream reference, stream name.\n"
@@ -3561,6 +3562,7 @@ void mc_InitRPCHelpMap15()
             " or\n"
             "1. entity-identifier(s)             (array, optional) A json array of stream or asset identifiers \n"                
             "2. rescan                           (boolean, optional, default=true) Rescan the wallet for transactions\n"
+            + pEF->ENT_TextConstant("help-subscribe-parameters-details") +
             "\nNote: This call can take minutes to complete if rescan is true.\n"
             "\nResult:\n"
             "\nExamples:\n"
@@ -4754,6 +4756,8 @@ void mc_InitRPCHelpMap()
     mc_InitRPCHelpMap18();
     mc_InitRPCHelpMap19();
     mc_InitRPCHelpMap20();
+    
+    pEF->ENT_InitRPCHelpMap();
     
     mc_InitRPCLogParamCountMap();
     mc_InitRPCAllowedWhenWaitingForUpgradeSet();    

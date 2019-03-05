@@ -9,6 +9,7 @@
 #include "json/json_spirit_ubjson.h"
 #include "json/json_spirit_reader_template.h"
 #include "json/json_spirit_writer_template.h"
+#include "community/community.h"
 
 #define MC_QPR_MAX_UNCHECKED_TX_LIST_SIZE    1048576
 #define MC_QPR_MAX_MERGED_TX_LIST_SIZE          1024
@@ -202,7 +203,7 @@ Value liststreams(const Array& params, bool fHelp)
     {
         if(paramtobool(params[1]))
         {
-            output_level=0x3E;           
+            output_level=0xBE;           
             if(mc_gState->m_Features->StreamFilters())
             {
                 output_level |= 0x40;    
@@ -1052,9 +1053,53 @@ Value publishfrom(const Array& params, bool fHelp)
     return wtx.GetHash().GetHex();    
 }
 
+Value trimsubscribe(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw runtime_error("Help message not found\n");
+    
+    pEF->ENT_RPCVerifyEdition();
+    
+    string indexes=params[1].get_str();
+    
+    vector<mc_EntityDetails> inputEntities;
+    vector<string> inputStrings;
+    if(params[0].type() == str_type)
+    {
+        inputStrings.push_back(params[0].get_str());
+    }
+    else
+    {    
+        inputStrings=ParseStringList(params[0]);
+    }
+    
+    for(int is=0;is<(int)inputStrings.size();is++)
+    {
+        mc_EntityDetails entity_to_subscribe;
+        Value param=inputStrings[is];
+        ParseEntityIdentifier(param,&entity_to_subscribe, MC_ENT_TYPE_STREAM);           
+        inputEntities.push_back(entity_to_subscribe);
+    }
+    
+    for(int is=0;is<(int)inputStrings.size();is++)
+    {
+        mc_EntityDetails* lpEntity;
+        lpEntity=&inputEntities[is];
+        
+        mc_TxEntity entity;
+        entity.Zero();
+        memcpy(entity.m_EntityID,lpEntity->GetTxID()+MC_AST_SHORT_TXID_OFFSET,MC_AST_SHORT_TXID_SIZE);
+        entity.m_EntityType=MC_TET_STREAM | MC_TET_CHAINPOS;
+        pEF->STR_TrimSubscription(&entity,indexes);        
+    }
+    
+    return Value::null;
+}
+
+
 Value subscribe(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1 || params.size() > ((pEF->ENT_EditionNumeric() == 0) ? 2 : 3))
         throw runtime_error("Help message not found\n");
 
     if((mc_gState->m_WalletMode & MC_WMD_TXS) == 0)
@@ -1064,9 +1109,22 @@ Value subscribe(const Array& params, bool fHelp)
        
     // Whether to perform rescan after import
     bool fRescan = true;
+    string indexes="all";
+    
     if (params.size() > 1)
-        fRescan = params[1].get_bool();
+    {
+        if(params[1].type() == bool_type)
+        {
+            fRescan = params[1].get_bool();
+        }
+    }
 
+    if (params.size() > 2)
+    {
+        pEF->ENT_RPCVerifyEdition();
+        indexes=params[2].get_str();
+    }
+    
     vector<mc_EntityDetails> inputEntities;
     vector<string> inputStrings;
     if(params[0].type() == str_type)
@@ -1111,6 +1169,11 @@ Value subscribe(const Array& params, bool fHelp)
                 entity.m_EntityType=MC_TET_STREAM_PUBLISHER | MC_TET_TIMERECEIVED;
                 pwalletTxsMain->AddEntity(&entity,MC_EFL_NOT_IN_SYNC);
                 fNewFound=true;
+            }                
+            entity.m_EntityType=MC_TET_STREAM | MC_TET_CHAINPOS;
+            if(pEF->STR_CreateSubscription(&entity,indexes) != MC_ERR_FOUND)
+            {
+                fNewFound=true;                
             }
         }
 
@@ -1562,6 +1625,10 @@ void getSubKeyEntityFromKey(string str,mc_TxEntityStat entStat,mc_TxEntity *enti
     mc_GetCompoundHash160(&stream_subkey_hash,entStat.m_Entity.m_EntityID,&key_string_hash);
     memcpy(entity->m_EntityID,&stream_subkey_hash,MC_TDB_ENTITY_ID_SIZE);
     entity->m_EntityType=entStat.m_Entity.m_EntityType | MC_TET_SUBKEY;    
+    if(pEF->STR_IsIndexSkipped(NULL,&(entStat.m_Entity),entity))
+    {
+        CheckWalletError(MC_ERR_NOT_ALLOWED);
+    }
 }
 
 void getSubKeyEntityFromPublisher(string str,mc_TxEntityStat entStat,mc_TxEntity *entity)
@@ -1597,6 +1664,10 @@ void getSubKeyEntityFromPublisher(string str,mc_TxEntityStat entStat,mc_TxEntity
 
     memcpy(entity->m_EntityID,&stream_subkey_hash,MC_TDB_ENTITY_ID_SIZE);
     entity->m_EntityType=entStat.m_Entity.m_EntityType | MC_TET_SUBKEY;    
+    if(pEF->STR_IsIndexSkipped(NULL,&(entStat.m_Entity),entity))
+    {
+        CheckWalletError(MC_ERR_NOT_ALLOWED);
+    }
 }
 
 Value getstreamsummary(const Array& params, bool fPublisher)
