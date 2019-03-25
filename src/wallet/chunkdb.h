@@ -28,6 +28,7 @@
 #define MC_CDB_FLUSH_MODE_DATASYNC    0x00000100
 
 #define MC_CFL_STORAGE_FLUSHED        0x01000000 
+#define MC_CFL_STORAGE_PURGED         0x02000000 
 
 
 /** File DB Row*/
@@ -194,7 +195,8 @@ typedef struct mc_ChunkDB
                     const void *entity,
                     const unsigned char *txid,
                     const int vout,
-                    int *mempool_entity_row);
+                    int *mempool_entity_row,
+                    int check_limit);
             
     
     int GetChunkDef(
@@ -203,6 +205,14 @@ typedef struct mc_ChunkDB
                     const void *entity,
                     const unsigned char *txid,
                     const int vout);
+    
+    int GetChunkDefWithLimit(
+                    mc_ChunkDBRow *chunk_def,
+                    const unsigned char *hash,                                  // Chunk hash (before chopping)    
+                    const void *entity,
+                    const unsigned char *txid,
+                    const int vout,
+                    int check_limit);
     
     unsigned char *GetChunkInternal(mc_ChunkDBRow *chunk_def,
                                     int32_t offset,
@@ -222,6 +232,7 @@ typedef struct mc_ChunkDB
                                   uint32_t fileid,
                                   uint32_t flush_mode);
     
+    int RestoreChunkIfNeeded(mc_ChunkDBRow *chunk_def);
     
     int AddToFile(const void *chunk,                  
                           uint32_t size,
