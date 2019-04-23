@@ -203,7 +203,7 @@ Value liststreams(const Array& params, bool fHelp)
     {
         if(paramtobool(params[1]))
         {
-            output_level=0xBE;           
+            output_level=0x01BE;           
             if(mc_gState->m_Features->StreamFilters())
             {
                 output_level |= 0x40;    
@@ -307,6 +307,7 @@ Value createstreamfromcmd(const Array& params, bool fHelp)
     lpDetails->Clear();
     
     int ret,type;
+    bool missing_salted=true;
     string stream_name="";
 
     if (params[2].type() != str_type)
@@ -381,7 +382,32 @@ Value createstreamfromcmd(const Array& params, bool fHelp)
                     }
                     else
                     {
-                        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid field, should be restrict");               
+                        if(mc_gState->m_Features->SaltedChunks())
+                        {                            
+                            if(d.name_ == "salted")
+                            {
+                                if(d.value_.type() == bool_type)
+                                {
+                                    if(d.value_.get_bool())
+                                    {
+                                        restrict |= MC_ENT_ENTITY_RESTRICTION_NEED_SALTED;
+                                    }
+                                    missing_salted=false;
+                                }    
+                                else
+                                {
+                                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid salted, should be boolean");                                                    
+                                }
+                            }
+                            else
+                            {
+                                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid field, should be restrict or salted");               
+                            }                        
+                        }
+                        else
+                        {
+                            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid field, should be restrict");                                           
+                        }
                     }
                 }
             }
@@ -395,7 +421,21 @@ Value createstreamfromcmd(const Array& params, bool fHelp)
             permissions = params[3].get_bool() ? MC_PTP_NONE : MC_PTP_WRITE;
         }
         lpDetails->SetSpecialParamValue(MC_ENT_SPRM_PERMISSIONS,(unsigned char*)&permissions,1);                                
-        if(restrict)
+        if(missing_salted)
+        {
+            if(permissions & MC_PTP_READ)
+            {
+                restrict |= MC_ENT_ENTITY_RESTRICTION_NEED_SALTED;
+            }
+        }
+        if(permissions & MC_PTP_READ)
+        {
+            if( (restrict |= MC_ENT_ENTITY_RESTRICTION_ONCHAIN ) == 0 )
+            {
+                throw JSONRPCError(RPC_NOT_ALLOWED, "onchain restriction should be set for read-permissioned streams");                               
+            }
+        }        
+        if( restrict != 0 )
         {
             lpDetails->SetSpecialParamValue(MC_ENT_SPRM_RESTRICTIONS,(unsigned char*)&restrict,1);                         
         }
@@ -1009,6 +1049,16 @@ Value publishfrom(const Array& params, bool fHelp)
         }                
     }    
     
+    if(stream_entity.AnyoneCanRead() == 0)
+    {
+        pEF->LIC_RPCVerifyFeature(MC_EFT_STREAM_READ_RESTRICTED_WRITE,"Publishing to read-restricted stream");
+    }
+    
+    if(stream_entity.Restrictions() & MC_ENT_ENTITY_RESTRICTION_NEED_SALTED)
+    {
+        out_options |= MC_RFD_OPTION_SALTED;
+    }
+    
     lpDetailsScript->Clear();
     if(in_options & MC_RFD_OPTION_OFFCHAIN)        
     {
@@ -1058,7 +1108,7 @@ Value trimsubscribe(const Array& params, bool fHelp)
     if (fHelp || params.size() != 2)
         throw runtime_error("Help message not found\n");
     
-    pEF->ENT_RPCVerifyEdition();
+    pEF->ENT_RPCVerifyEdition("trimsubscribe API");
     
     string indexes=params[1].get_str();
     
@@ -1121,7 +1171,7 @@ Value subscribe(const Array& params, bool fHelp)
 
     if (params.size() > 2)
     {
-        pEF->ENT_RPCVerifyEdition();
+        pEF->ENT_RPCVerifyEdition("Controlled subscriptions");
         indexes=params[2].get_str();
     }
     
@@ -1141,6 +1191,14 @@ Value subscribe(const Array& params, bool fHelp)
         mc_EntityDetails entity_to_subscribe;
         Value param=inputStrings[is];
         ParseEntityIdentifier(param,&entity_to_subscribe, MC_ENT_TYPE_ANY);           
+        if(entity_to_subscribe.AnyoneCanRead() == 0)
+        {
+            pEF->LIC_RPCVerifyFeature(MC_EFT_STREAM_READ_RESTRICTED_READ,"Subscribing to read-restricted stream");
+            if(!pEF->WLT_FindReadPermissionedAddress(&entity_to_subscribe).IsValid())
+            {
+                throw JSONRPCError(RPC_INSUFFICIENT_PERMISSIONS, "This wallet doesn't have keys with read permission for stream "+inputStrings[is]);                
+            }
+        }
         inputEntities.push_back(entity_to_subscribe);
     }
     
@@ -1301,6 +1359,17 @@ Value unsubscribe(const Array& params, bool fHelp)
         if(pwalletTxsMain->Unsubscribe(streams,purge))
         {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't unsubscribe from stream");                                    
+        }
+        for(int is=0;is<(int)inputStrings.size();is++)
+        {
+            mc_EntityDetails* lpEntity;
+            lpEntity=&inputEntities[is];
+
+            mc_TxEntity entity;
+            entity.Zero();
+            memcpy(entity.m_EntityID,lpEntity->GetTxID()+MC_AST_SHORT_TXID_OFFSET,MC_AST_SHORT_TXID_SIZE);
+            entity.m_EntityType=MC_TET_STREAM | MC_TET_CHAINPOS;
+            pEF->STR_TrimSubscription(&entity,"unsubscribe");        
         }
     }
 
@@ -1631,7 +1700,7 @@ bool getSubKeyEntityFromKey(string str,mc_TxEntityStat entStat,mc_TxEntity *enti
     key_string_hash=Hash160(str.begin(),str.end());
     mc_GetCompoundHash160(&stream_subkey_hash,entStat.m_Entity.m_EntityID,&key_string_hash);
     memcpy(entity->m_EntityID,&stream_subkey_hash,MC_TDB_ENTITY_ID_SIZE);
-    entity->m_EntityType=entStat.m_Entity.m_EntityType | MC_TET_SUBKEY;    
+    entity->m_EntityType=entStat.m_Entity.m_EntityType | MC_TET_SUBKEY;   
     if(pEF->STR_IsIndexSkipped(NULL,&(entStat.m_Entity),entity))
     {
         if(ignore_unsubscribed)
@@ -2483,6 +2552,7 @@ int GetAndQueryDirtyList(vector<mc_QueryCondition>& conditions, mc_EntityDetails
     vector<int> vConditionMerged;
     mc_TxEntityStat entStat;
     bool merge_lists=true;
+    bool one_index_found=false;
     
     vConditionEntities.resize(conditions_count+1);
     vConditionListSizes.resize(conditions_count+1);
@@ -2514,6 +2584,7 @@ int GetAndQueryDirtyList(vector<mc_QueryCondition>& conditions, mc_EntityDetails
         bool index_found=true;
         if(i<conditions_count)
         {
+            index_found=false;
             switch(conditions[i].m_Type)
             {
                 case MC_QCT_KEY:
@@ -2524,6 +2595,10 @@ int GetAndQueryDirtyList(vector<mc_QueryCondition>& conditions, mc_EntityDetails
                     entStat.m_Entity.m_EntityType |= MC_TET_STREAM_PUBLISHER;
                     index_found=getSubKeyEntityFromPublisher(conditions[i].m_Value,entStat,&vConditionEntities[i],true);                
                     break;
+            }
+            if(index_found)
+            {
+                one_index_found=true;                
             }
         }
         else
@@ -2542,6 +2617,11 @@ int GetAndQueryDirtyList(vector<mc_QueryCondition>& conditions, mc_EntityDetails
                 }
             }
         }
+    }
+    
+    if(!one_index_found)
+    {
+        CheckWalletError(MC_ERR_NOT_ALLOWED);        
     }
     
     clean_count=0;
@@ -2880,7 +2960,7 @@ Value retrievestreamitems(const Array& params, bool fHelp)
     if (fHelp || params.size() != 2)
         throw runtime_error("Help message not found\n");
     
-    pEF->ENT_RPCVerifyEdition();
+    pEF->ENT_RPCVerifyEdition("retrievestreamitems API");
     
     return pEF->STR_RPCRetrieveStreamItems(params);
 }
@@ -2890,7 +2970,7 @@ Value purgestreamitems(const Array& params, bool fHelp)
     if (fHelp || params.size() != 2)
         throw runtime_error("Help message not found\n");
     
-    pEF->ENT_RPCVerifyEdition();
+    pEF->ENT_RPCVerifyEdition("purgestreamitems API");
     
     return pEF->STR_RPCPurgeStreamItems(params);
 }
@@ -2900,7 +2980,7 @@ Value purgepublisheditems(const Array& params, bool fHelp)
     if (fHelp || params.size() != 1)
         throw runtime_error("Help message not found\n");
     
-    pEF->ENT_RPCVerifyEdition();
+    pEF->ENT_RPCVerifyEdition("purgepublisheditems API");
     
     return pEF->STR_RPCPurgePublishedItems(params);
 }

@@ -28,6 +28,7 @@
 #define MC_ENT_ENTITY_RESTRICTION_NONE           0x00000000
 #define MC_ENT_ENTITY_RESTRICTION_ONCHAIN        0x00000001
 #define MC_ENT_ENTITY_RESTRICTION_OFFCHAIN       0x00000002
+#define MC_ENT_ENTITY_RESTRICTION_NEED_SALTED    0x00000004
 
 
 
@@ -195,6 +196,7 @@ typedef struct mc_EntityDetails
     uint32_t Permissions(); 
     uint32_t Restrictions(); 
     int AnyoneCanWrite(); 
+    int AnyoneCanRead(); 
     int UpgradeProtocolVersion(); 
     uint32_t UpgradeStartBlock(); 
     uint64_t GetQuantity();

@@ -157,6 +157,9 @@ typedef struct mc_Features
     int FixedJSDateFunctions();
     int DisabledJSDateParse();
     int FixedLegacyPermissionRestrictionFlag();
+    int ReadPermissions();
+    int SaltedChunks();
+    int FixedIn20010();
 } mc_Features;
 
 typedef struct mc_BlockHeaderInfo
