@@ -6,11 +6,10 @@ set -x
 if [ ! -d "./v8build/v8" ]; then
   cd ./v8build
 
-  # get the Google depot tools
-  git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
-  cd depot_tools
-  git checkout af2ffd933d0e6d8b5bd8c48be7a2b2d568a5eea2
-  cd ..
+  # get specific version of Google depot tools
+  wget --output-document=./depot_tools.tar.gz https://chromium.googlesource.com/chromium/tools/depot_tools/+archive/af2ffd933d0e6d8b5bd8c48be7a2b2d568a5eea2.tar.gz
+  mkdir ./depot_tools
+  tar xf ./depot_tools.tar.gz -C ./depot_tools
   export PATH=${PATH}:$(pwd)/depot_tools
 
   # obtain proper V8 version
