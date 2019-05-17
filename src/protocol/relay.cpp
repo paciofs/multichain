@@ -59,14 +59,20 @@ int mc_IsReadPermissionedStream(mc_ChunkEntityKey* chunk,map<uint160,int>& cache
     }
 
     mc_EntityDetails entity;
-    int result;
+    int result=0;
     
-    if(mc_gState->m_Assets->FindEntityByShortTxID(&entity,chunk->m_Entity.m_EntityID) == 0)
     {
-        result=-2;
-        cache.insert(make_pair(enthash,result));
-        return result;
-    }               
+        LOCK(cs_main);                                                          // possible caching improvement here
+        if(mc_gState->m_Assets->FindEntityByShortTxID(&entity,chunk->m_Entity.m_EntityID) == 0)
+        {
+            result=-2;
+        }               
+    }
+    
+    if(result)
+    {
+        return result;        
+    }
     
     result=0;
     
@@ -125,6 +131,7 @@ bool MultichainProcessChunkResponse(const CRelayResponsePair *response_pair,map 
     mc_ChunkEntityKey *chunk;
     mc_ChunkEntityKey *chunkOut;
     unsigned char *ptrOut;
+    unsigned char *ptrOutEnd;
     bool result=false;
     string strError="";
     mc_ChunkCollectorRow *collect_row;
@@ -158,7 +165,7 @@ bool MultichainProcessChunkResponse(const CRelayResponsePair *response_pair,map 
                 {
                     if(mc_IsReadPermissionedStream((mc_ChunkEntityKey*)ptr,mapReadPermissionCache,NULL))
                     {
-                        result=pEF->OFF_ProcessChunkResponse(request,response,request_pairs,collector);
+                        result=pEF->OFF_ProcessChunkResponse(request,response,request_pairs,collector,strError);
                         goto exitlbl;
                     }
                     total_size+=((mc_ChunkEntityKey*)ptr)->m_Size+size;
@@ -166,19 +173,20 @@ bool MultichainProcessChunkResponse(const CRelayResponsePair *response_pair,map 
                 }
                 break;
             default:
-                result=pEF->OFF_ProcessChunkResponse(request,response,request_pairs,collector);
+                result=pEF->OFF_ProcessChunkResponse(request,response,request_pairs,collector,strError);
                 goto exitlbl;
         }
     }
     
 
-    if(response->m_Payload.size() != 1+shift+total_size)
+    if(response->m_Payload.size() < 1+shift+total_size)
     {
         strError="Total size mismatch";
         goto exitlbl;        
     }
 
     ptrOut=&(response->m_Payload[0]);
+    ptrOutEnd=ptrOut+response->m_Payload.size();
     if(*ptrOut != MC_RDT_CHUNKS)
     {
         strError="Unsupported payload format";
@@ -200,6 +208,11 @@ bool MultichainProcessChunkResponse(const CRelayResponsePair *response_pair,map 
         sizeOut=((mc_ChunkEntityKey*)ptr)->m_Size;
         chunk=(mc_ChunkEntityKey*)ptr;
         chunkOut=(mc_ChunkEntityKey*)ptrOut;
+        if(ptrOutEnd - ptrOut < size)
+        {
+            strError="Total size mismatch";
+            goto exitlbl;                                                    
+        }
         ptrOut+=size;
         if(chunk->m_Size != chunkOut->m_Size)
         {
@@ -224,6 +237,16 @@ bool MultichainProcessChunkResponse(const CRelayResponsePair *response_pair,map 
         if (itreq != request_pairs->end())
         {
             collect_row=(mc_ChunkCollectorRow *)collector->m_MemPool->GetRow(itreq->second);
+            if(ptrOutEnd - ptrOut < collect_row->m_SaltSize+sizeOut)
+            {
+                strError="Total size mismatch";
+                goto exitlbl;                                                    
+            }
+            if(collect_row->m_SaltSize)
+            {
+                memcpy(collect_row->m_Salt,ptrOut,collect_row->m_SaltSize);
+                ptrOut+=collect_row->m_SaltSize;
+            }
             uint256 hash;
 //            mc_gState->m_TmpBuffers->m_RpcHasher1->DoubleHash(ptrOut,sizeOut,&hash);
             mc_gState->m_TmpBuffers->m_RpcHasher1->DoubleHash(collect_row->m_Salt,collect_row->m_SaltSize,ptrOut,sizeOut,&hash);
@@ -235,7 +258,8 @@ bool MultichainProcessChunkResponse(const CRelayResponsePair *response_pair,map 
             }
             if( (collect_row->m_State.m_Status & MC_CCF_DELETED ) == 0 )
             {
-                chunk_err=pwalletTxsMain->m_ChunkDB->AddChunk(chunk->m_Hash,&(chunk->m_Entity),(unsigned char*)collect_row->m_TxID,collect_row->m_Vout,ptrOut,NULL,sizeOut,0,0);
+                chunk_err=pwalletTxsMain->m_ChunkDB->AddChunk(chunk->m_Hash,&(chunk->m_Entity),(unsigned char*)collect_row->m_TxID,collect_row->m_Vout,
+                        ptrOut,NULL,collect_row->m_Salt,sizeOut,0,collect_row->m_SaltSize,0);
                 if(chunk_err)
                 {
                     if(chunk_err != MC_ERR_FOUND)
@@ -482,7 +506,8 @@ int MultichainCollectChunks(mc_ChunkCollector* collector)
                 else
                 {
                     itdld->second+=collect_row->m_ChunkDef.m_Size + sizeof(mc_ChunkEntityKey);
-                }                                    
+                }  
+                pRelayManager->UnLock();
             }
         }
         else
@@ -557,8 +582,8 @@ int MultichainCollectChunks(mc_ChunkCollector* collector)
                             itdld->second+=collect_row->m_ChunkDef.m_Size + sizeof(mc_ChunkEntityKey);
                         }                                    
                     }
+                    pRelayManager->UnLock();
                 }
-                pRelayManager->UnLock();
             }
             if(!collect_row->m_State.m_Query.IsZero())
             {
@@ -575,6 +600,7 @@ int MultichainCollectChunks(mc_ChunkCollector* collector)
         string strError;
         bool lost_permission=false;
         mapReadPermissionCache.clear();
+        int ef_cache_id;
         sAddressesToSign.clear();
         
         vector<unsigned char> vRPPayload;
@@ -597,9 +623,15 @@ int MultichainCollectChunks(mc_ChunkCollector* collector)
 
             response=&(request->m_Responses[item.first.response_id]);
             
+            ef_cache_id=-1;
             if(sAddressesToSign.size())
             {
-                pEF->OFF_GetPayloadForReadPermissioned(&vRPPayload,strError);
+                if(!pEF->OFF_GetPayloadForReadPermissioned(&vRPPayload,&ef_cache_id,strError))
+                {
+                    if(fDebug)LogPrint("chunks","Error creating read-permissioned EF payload: %s\n",
+                            strError.c_str());                                            
+                }
+                
             }
 
             payload.clear();
@@ -633,7 +665,7 @@ int MultichainCollectChunks(mc_ChunkCollector* collector)
                 count++;
             }
     //        mc_DumpSize("req",&(payload[0]),1+shift+sizeof(mc_ChunkEntityKey)*item.second.m_Pairs.size(),64);
-            request_id=pRelayManager->SendNextRequest(response,MC_RMT_CHUNK_REQUEST,0,payload,sAddressesToSign);
+            request_id=pRelayManager->SendNextRequest(response,MC_RMT_CHUNK_REQUEST,0,payload,sAddressesToSign,ef_cache_id);
             if(!request_id.IsZero())
             {
                 if(fDebug)LogPrint("chunks","New chunk request: %s, response: %s, chunks: %d\n",request_id.ToString().c_str(),response->m_MsgID.ToString().c_str(),item.second.m_Pairs.size());
@@ -773,6 +805,7 @@ int MultichainCollectChunks(mc_ChunkCollector* collector)
                             {
                                 expired=1;
                             }
+                            pRelayManager->UnLock();
                         }                        
                     }                    
                 }
@@ -1195,8 +1228,13 @@ bool mc_RelayProcess_Chunk_Request(unsigned char *ptrStart,unsigned char *ptrEnd
                                 strError="Total size of requested chunks is too big for response expiration";
                                 return false;                                                
                             }
-                            chunk_found=pwalletTxsMain->m_ChunkDB->GetChunk(&chunk_def,0,-1,&chunk_bytes);
+                            
+                            unsigned char salt[MC_CDB_CHUNK_SALT_SIZE];
+                            uint32_t salt_size;
+                            
+                            chunk_found=pwalletTxsMain->m_ChunkDB->GetChunk(&chunk_def,0,-1,&chunk_bytes,salt,&salt_size);
                             mc_gState->m_TmpBuffers->m_RelayTmpBuffer->SetData((unsigned char*)&chunk,size);
+                            mc_gState->m_TmpBuffers->m_RelayTmpBuffer->SetData(salt,salt_size);
                             mc_gState->m_TmpBuffers->m_RelayTmpBuffer->SetData(chunk_found,chunk_bytes);
                         }                    
                         else
@@ -1208,7 +1246,7 @@ bool mc_RelayProcess_Chunk_Request(unsigned char *ptrStart,unsigned char *ptrEnd
                     ptr+=size;
                 }
                 
-                if(read_permissioned == NULL)
+                if(!read_permissioned)
                 {
                     chunk_found=mc_gState->m_TmpBuffers->m_RelayTmpBuffer->GetData(0,&chunk_bytes);
                     shift=mc_PutVarInt(buf,16,count);
@@ -1439,7 +1477,10 @@ bool MultichainRelayResponse(uint32_t msg_type_stored, CNode *pto_stored,
                 bool read_permissioned;
                 if(!mc_RelayProcess_Chunk_Request(ptr,ptrEnd,payload_response_ptr,payload_relay_ptr,mapReadPermissionCache,&read_permissioned,strError))
                 {
-                    goto exitlbl;                            
+                    if(!read_permissioned)
+                    {
+                        goto exitlbl;                            
+                    }
                 }
                 vSigScriptsToVerify.clear();
                 if(read_permissioned)
@@ -1783,7 +1824,6 @@ int mc_RelayManager::Lock(int write_mode,int allow_secondary)
     {
         return allow_secondary;
     }
-    
     __US_SemWait(m_Semaphore); 
     m_LockedBy=this_thread;
     
@@ -2517,11 +2557,12 @@ void mc_RelayRequest::Zero()
     m_TryCount=0;
     m_Status=MC_RST_NONE;
     m_DestinationID=0;
+    m_EFCacheID=-1;
     m_Payload.clear();   
     m_Responses.clear();
 }
 
-int mc_RelayManager::AddRequest(CNode *pto,int64_t destination,mc_OffchainMessageID msg_id,uint32_t msg_type,uint32_t flags,vector <unsigned char>& payload,uint32_t status)
+int mc_RelayManager::AddRequest(CNode *pto,int64_t destination,mc_OffchainMessageID msg_id,uint32_t msg_type,uint32_t flags,vector <unsigned char>& payload,uint32_t status,int ef_cache_id)
 {    
     int err=MC_ERR_NOERROR;
  
@@ -2539,6 +2580,7 @@ int mc_RelayManager::AddRequest(CNode *pto,int64_t destination,mc_OffchainMessag
         request.m_Status=status;
         request.m_DestinationID=destination;
         request.m_Payload=payload;   
+        request.m_EFCacheID=ef_cache_id;
         request.m_Responses.clear();
 
         if(fDebug)LogPrint("offchain","Offchain rqst: %s, to: %d, msg: %s, size: %d\n",msg_id.ToString().c_str(),pto ? pto->GetId() : 0,mc_MsgTypeStr(msg_type).c_str(),(int)payload.size());
@@ -2610,6 +2652,7 @@ int mc_RelayManager::DeleteRequest(mc_OffchainMessageID request)
     map<mc_OffchainMessageID, mc_RelayRequest>::iterator itreq = m_Requests.find(request);
     if(itreq != m_Requests.end())
     {
+        pEF->OFF_FreeEFCache(itreq->second.m_EFCacheID);
         m_Requests.erase(itreq);       
         if(fDebug)LogPrint("offchain","Offchain delete: %s, msg: %s, size: %d. Open requests: %d\n",itreq->second.m_MsgID.ToString().c_str(),
             mc_MsgTypeStr(itreq->second.m_MsgType).c_str(),(int)itreq->second.m_Payload.size(),(int)m_Requests.size());
@@ -2658,16 +2701,17 @@ mc_OffchainMessageID mc_RelayManager::SendRequest(CNode* pto,uint32_t msg_type,u
         }
     }
 
-    if(AddRequest(pto,0,msg_id,msg_type,flags,payload,MC_RST_NONE) != MC_ERR_NOERROR)
+    if(AddRequest(pto,0,msg_id,msg_type,flags,payload,MC_RST_NONE,-1) != MC_ERR_NOERROR)
     {
         UnLock();
         return mc_OffchainMessageID();
     }
     
+    UnLock();
     return msg_id;
 }
 
-mc_OffchainMessageID mc_RelayManager::SendNextRequest(mc_RelayResponse* response,uint32_t msg_type,uint32_t flags,vector <unsigned char>& payload,set<CPubKey>& sAddresses)
+mc_OffchainMessageID mc_RelayManager::SendNextRequest(mc_RelayResponse* response,uint32_t msg_type,uint32_t flags,vector <unsigned char>& payload,set<CPubKey>& sAddresses,int ef_cache_id)
 {
     mc_OffchainMessageID msg_id;
     vector <int32_t> vEmptyHops;
@@ -2678,7 +2722,7 @@ mc_OffchainMessageID mc_RelayManager::SendNextRequest(mc_RelayResponse* response
     msg_id=GenerateMsgID();
 
     
-    Lock();
+    Lock();                                                                     // Secondary lock, to make sure it is locked by this thread
     {
         LOCK(cs_vNodes);
         BOOST_FOREACH(CNode* pnode, vNodes)
@@ -2689,7 +2733,7 @@ mc_OffchainMessageID mc_RelayManager::SendNextRequest(mc_RelayResponse* response
                 {
                     msg_id=PushRelay(pnode,0,vEmptyHops,vEmptySendPaths,msg_type,msg_id,response->m_MsgID,
                                          flags,payload,vSigScripts,NULL,MC_PRA_NONE);                    
-                    if(AddRequest(pnode,response->SourceID(),msg_id,msg_type,flags,payload,MC_RST_NONE) != MC_ERR_NOERROR)
+                    if(AddRequest(pnode,response->SourceID(),msg_id,msg_type,flags,payload,MC_RST_NONE,ef_cache_id) != MC_ERR_NOERROR)
                     {                    
                         UnLock();
                         return mc_OffchainMessageID();

@@ -56,13 +56,14 @@ typedef struct mc_EnterpriseFeatures
     
     bool OFF_ProcessChunkRequest(unsigned char *ptrStart,unsigned char *ptrEnd,vector<unsigned char>* payload_response,vector<unsigned char>* payload_relay,
         map<uint160,int>& mapReadPermissionedStreams,string& strError);
-    bool OFF_ProcessChunkResponse(mc_RelayRequest *request,mc_RelayResponse *response,map <int,int>* request_pairs,mc_ChunkCollector* collector);
+    bool OFF_ProcessChunkResponse(mc_RelayRequest *request,mc_RelayResponse *response,map <int,int>* request_pairs,mc_ChunkCollector* collector,string& strError);
     bool OFF_GetScriptsToVerify(map<uint160,int>& mapReadPermissionedStreams,vector<CScript>& vSigScriptsIn,vector<CScript>& vSigScriptsToVerify,string& strError);
     bool OFF_VerifySignatureScripts(uint32_t  msg_type,mc_OffchainMessageID& msg_id,mc_OffchainMessageID& msg_id_to_respond,uint32_t  flags,
             vector<unsigned char>& vPayload,vector<CScript>& vSigScriptsToVerify,string& strError,int& dos_score);
     bool OFF_CreateSignatureScripts(uint32_t  msg_type,mc_OffchainMessageID& msg_id,mc_OffchainMessageID& msg_id_to_respond,uint32_t  flags,
             vector<unsigned char>& vPayload,set<CPubKey>& vAddresses,vector<CScript>& vSigScripts,string& strError);
-    bool OFF_GetPayloadForReadPermissioned(vector<unsigned char>* payload,string& strError);
+    bool OFF_GetPayloadForReadPermissioned(vector<unsigned char>* payload,int *ef_cache_id,string& strError);
+    void OFF_FreeEFCache(int ef_cache_id);
     unsigned char* OFF_SupportedEnterpriseFeatures(unsigned char* min_ef,int min_ef_size,int *ef_size);
     
     CPubKey WLT_FindReadPermissionedAddress(mc_EntityDetails* entity);
@@ -75,10 +76,12 @@ typedef struct mc_EnterpriseFeatures
     
     std::string ENT_Edition();
     int ENT_EditionNumeric();
+    int ENT_BuildVersion();
     int ENT_MinWalletDatVersion();
     void ENT_RPCVerifyEdition(std::string message);
     std::string ENT_TextConstant(const char* name);
     void ENT_InitRPCHelpMap();
+    void ENT_MaybeStop();
     
     void LIC_RPCVerifyFeature(uint64_t feature,std::string message);
     bool LIC_VerifyFeature(uint64_t feature,std::string& reason);

@@ -904,6 +904,8 @@ CScript RawDataScriptCreateStream(Value *param,mc_Script *lpDetails,mc_Script *l
                 {
                     *strError=string("open/restrict field can appear only once in the object");                                                                                                        
                 }
+                RawDataParseRestrictParameter(d.value_,&restrict,&permissions,errorCode,strError);
+/*                
                 if(RawDataParseRestrictParameter(d.value_,&restrict,&permissions,errorCode,strError))
                 {
                     if(restrict & MC_ENT_ENTITY_RESTRICTION_OFFCHAIN)
@@ -915,6 +917,7 @@ CScript RawDataScriptCreateStream(Value *param,mc_Script *lpDetails,mc_Script *l
                         }                        
                     }
                 }
+ */ 
                 missing_open=false;
                 field_parsed=true;
             }
@@ -956,18 +959,26 @@ CScript RawDataScriptCreateStream(Value *param,mc_Script *lpDetails,mc_Script *l
     {
         if(permissions & MC_PTP_READ)
         {
-            if( (restrict |= MC_ENT_ENTITY_RESTRICTION_ONCHAIN ) == 0 )
+            restrict |= MC_ENT_ENTITY_RESTRICTION_ONCHAIN;
+/*            
+            if( (restrict & MC_ENT_ENTITY_RESTRICTION_ONCHAIN ) == 0 )
             {
                 *strError="onchain restriction should be set for read-permissioned streams";
                 *errorCode=RPC_NOT_ALLOWED;
             }
+ */ 
         }        
     }
     
-    if(permissions & MC_PTP_READ)
+    if(restrict & MC_ENT_ENTITY_RESTRICTION_OFFCHAIN)
     {
-        restrict |= MC_ENT_ENTITY_RESTRICTION_ONCHAIN;
+        if(restrict & MC_ENT_ENTITY_RESTRICTION_ONCHAIN)
+        {
+            *strError=string("Stream cannot be restricted from both onchain and offchain items");               
+            *errorCode=RPC_NOT_SUPPORTED;                            
+        }                        
     }
+    
     if( restrict != 0 )
     {
         lpDetails->SetSpecialParamValue(MC_ENT_SPRM_RESTRICTIONS,(unsigned char*)&restrict,1);                         
