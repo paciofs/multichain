@@ -424,7 +424,9 @@ std::string HelpMessage(HelpMessageMode mode)                                   
     strUsage += "                         " + _("(more details and % substitutions online)") + "\n";
 /* MCHN START */    
     strUsage += "  -walletdbversion=2|3   " + _("Specify wallet version, 2 - Berkeley DB, 3 (default) - proprietary") + "\n";
-    strUsage += "  -autosubscribe=streams|assets|\"streams,assets\"|\"assets,streams\"|\"\" " + _("Automatically subscribe to new streams and/or assets") + "\n";
+    strUsage += "  -autosubscribe=<params> " + _("Automatically subscribe to new streams and/or assets, as a comma delimited list of subscriptions.") + "\n";
+    strUsage += "                         " + _("All editions: assets, streams. Enterprise Edition only: streams-items,streams-items-local,") + "\n";
+    strUsage += "                         " + _("streams-keys,streams-keys-local,streams-publishers,streams-publishers-local,streams-retrieve") + "\n";
 /* MCHN END */    
     strUsage += "  -zapwallettxes=<mode>  " + _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") + "\n";
     strUsage += "                         " + _("(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)") + "\n";
@@ -1595,6 +1597,9 @@ bool AppInit2(boost::thread_group& threadGroup,int OutputPipe)
                 {
                     mc_gState->m_WalletMode |= MC_WMD_NO_CHUNK_FLUSH;
                 }
+                
+                mc_gState->m_WalletMode |= mc_AutosubscribeWalletMode(GetArg("-autosubscribe","none"),false);
+/*                
                 string autosubscribe=GetArg("-autosubscribe","none");
                 
                 if(autosubscribe=="streams")
@@ -1610,7 +1615,7 @@ bool AppInit2(boost::thread_group& threadGroup,int OutputPipe)
                     mc_gState->m_WalletMode |= MC_WMD_AUTOSUBSCRIBE_STREAMS;
                     mc_gState->m_WalletMode |= MC_WMD_AUTOSUBSCRIBE_ASSETS;
                 }                
-
+*/
                 if(pwalletTxsMain->Initialize(mc_gState->m_NetworkParams->Name(),mc_gState->m_WalletMode))
                 {
                     return InitError("Wallet tx database corrupted. Please restart multichaind with -rescan\n");                        
@@ -2666,6 +2671,23 @@ bool AppInit2(boost::thread_group& threadGroup,int OutputPipe)
     }
 #endif
 
+    pEF->LIC_VerifyLicenses(0);
+    
+    vector<string> conflicting_licenses=pEF->LIC_LicensesWithStatus("conflicting");
+    
+    for(unsigned int l=0;l<conflicting_licenses.size();l++)
+    {
+        if(!GetBoolArg("-shortoutput", false))
+        {    
+            sprintf(bufOutput,"The license %s is available to this node but will not be used automatically, because it appears it was not previously in use.\n",
+                    conflicting_licenses[l].c_str());
+            bytes_written=write(OutputPipe,bufOutput,strlen(bufOutput));        
+            sprintf(bufOutput,"To use this license for this node and stop any other from using it, use the 'takelicense %s' command.\n\n",
+                    conflicting_licenses[l].c_str());                    
+            bytes_written=write(OutputPipe,bufOutput,strlen(bufOutput));        
+        }        
+    }
+    
     SetRPCWarmupFinished();                                                     // Should be here, otherwise wallet can double spend
     uiInterface.InitMessage(_("Done loading"));
 

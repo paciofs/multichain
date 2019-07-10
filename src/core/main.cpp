@@ -4127,9 +4127,11 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
 //    if (block.GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
     if (block.GetBlockTime() > GetAdjustedTime() + 2 * 6 * Params().TargetSpacing())
 /* MCHN END */    
+    {
+        LogPrintf("ERROR: Block time: %u. Node time: %u, Offset: %u\n",block.GetBlockTime(), GetAdjustedTime(), GetTimeOffset());
         return state.Invalid(error("CheckBlockHeader() : block timestamp too far in the future"),
                              REJECT_INVALID, "time-too-new");
-
+    }
     return true;
 }
 
@@ -4780,9 +4782,10 @@ bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDis
     
     if(activate)
     {
-        
+        pEF->LIC_VerifyLicenses(-1);
         if (!ActivateBestChain(state, pblock))
-            return error("%s : ActivateBestChain failed", __func__);
+            return error("%s : ActivateBestChain failed", __func__);    
+        pEF->LIC_VerifyLicenses(chainActive.Height());
     }
 /* MCHN START */    
 /*
@@ -6314,6 +6317,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     }
                 }
             }
+            
+        
+            pEF->LIC_VerifyLicenses(-1);            
 /* MCHN END */            
             
             

@@ -26,6 +26,16 @@ int mc_EnterpriseFeatures::STR_CreateSubscription(mc_TxEntity *entity,const std:
     return MC_ERR_FOUND;        
 }
 
+uint32_t mc_EnterpriseFeatures::STR_CheckAutoSubscription(const std::string parameters,bool check_license)
+{
+    return 0;
+}
+
+int mc_EnterpriseFeatures::STR_CreateAutoSubscription(mc_TxEntity *entity)
+{
+    return MC_ERR_NOERROR;        
+}
+
 int mc_EnterpriseFeatures::STR_TrimSubscription(mc_TxEntity *entity,const std::string parameters)
 {
     return MC_ERR_NOERROR;        
@@ -235,12 +245,28 @@ bool mc_EnterpriseFeatures::LIC_VerifyFeature(uint64_t feature,std::string& reas
     return false;
 }
 
-int mc_EnterpriseFeatures::LIC_VerifyLicenses()
+std::vector<std::string> mc_EnterpriseFeatures::LIC_LicensesWithStatus(std::string status)
+{
+    std::vector<std::string> result;
+    return result;
+}
+
+int mc_EnterpriseFeatures::LIC_VerifyLicenses(int block)
 {
     return MC_ERR_NOERROR;
 }
 
+int mc_EnterpriseFeatures::LIC_VerifyUpdateCoin(int block,mc_Coin *coin,bool is_new)
+{
+    return MC_ERR_NOERROR;    
+}
+
 Value mc_EnterpriseFeatures::LIC_RPCDecodeLicenseRequest(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::LIC_RPCDecodeLicenseConfirmation(const Array& params)
 {
     return Value::null;
 }
@@ -264,3 +290,10 @@ Value mc_EnterpriseFeatures::LIC_RPCGetLicenseConfirmation(const Array& params)
 {
     return Value::null;
 }
+
+Value mc_EnterpriseFeatures::LIC_RPCTakeLicense(const Array& params)
+{
+    return Value::null;
+}
+
+

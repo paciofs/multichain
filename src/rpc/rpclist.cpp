@@ -169,9 +169,11 @@ static const CRPCCommand vRPCCommands[] =
     /* Licensing */
     { "hidden",             "getlicenserequest",      &getlicenserequest,       true,      false,      true },
     { "hidden",             "decodelicenserequest",   &decodelicenserequest,    true,      false,      true },
+    { "hidden",             "decodelicenseconfirmation",   &decodelicenseconfirmation,    true,      false,      true },
     { "hidden",             "activatelicense",        &activatelicense,         true,      false,      true },
     { "hidden",             "activatelicensefrom",    &activatelicensefrom,     true,      false,      true },
     { "hidden",             "transferlicense",        &transferlicense,         true,      false,      true },
+    { "hidden",             "takelicense",            &takelicense,             true,      false,      true },
     { "hidden",             "listlicenses",           &listlicenses,            true,      false,      true },
     { "hidden",             "getlicenseconfirmation", &getlicenseconfirmation,  true,      false,      true },
     
