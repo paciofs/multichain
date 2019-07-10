@@ -57,6 +57,7 @@ jobs:
             - pkg-config
             - python
             - rename
+          update: true
 
       install:
         # uninstall pre-installed boost and use 1.57
