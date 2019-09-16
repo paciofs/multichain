@@ -15,6 +15,11 @@ void mc_EnterpriseFeatures::Destroy()
     Zero();
 }
 
+int mc_EnterpriseFeatures::Prepare()
+{
+    return MC_ERR_NOERROR;
+}
+
 int mc_EnterpriseFeatures::Initialize(const char *name,uint32_t mode)
 {
     
@@ -86,11 +91,66 @@ Value mc_EnterpriseFeatures::STR_RPCPurgePublishedItems(const Array& params)
     return Value::null;
 }
 
-
 int mc_EnterpriseFeatures::STR_RemoveDataFromFile(int fHan, uint32_t from, uint32_t size, uint32_t mode)
 {
     return MC_ERR_NOERROR;
 }
+
+Value mc_EnterpriseFeatures::FED_RPCCreateFeed(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCSuspendFeed(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCDeleteFeed(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCRescanFeed(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCAddFeedStreams(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCRemoveFeedStreams(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCAddFeedBlocks(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCRemoveFeedBlocks(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCPurgeFeedFile(const Array& params)
+{
+    return Value::null;
+}
+
+Value mc_EnterpriseFeatures::FED_RPCListFeeds(const Array& params)
+{
+    return Value::null;
+}
+
+int mc_EnterpriseFeatures::FED_EventTx(const CTransaction& tx,int block,CDiskTxPos* block_pos,uint32_t block_tx_index,uint256 block_hash,uint32_t block_timestamp)
+{
+    return MC_ERR_NOERROR;
+}
+
 
 bool mc_EnterpriseFeatures::OFF_ProcessChunkRequest(unsigned char *ptrStart,unsigned char *ptrEnd,vector<unsigned char>* payload_response,vector<unsigned char>* payload_relay,
         map<uint160,int>& mapReadPermissionedStreams,string& strError)
@@ -180,6 +240,76 @@ int mc_EnterpriseFeatures::WLT_NoRetrieve(mc_TxEntity *entity)
 {
     return 0;
 }
+
+bool mc_EnterpriseFeatures::NET_ProcessHandshakeData(CNode* pfrom, std::string sENTData,bool fIsVerackack)
+{
+    return true;
+}
+
+std::vector<unsigned char> mc_EnterpriseFeatures::NET_PushHandshakeData(CNode* pfrom, bool fIsVerackack)
+{
+    vector<unsigned char> result;
+    return result;
+}
+
+bool mc_EnterpriseFeatures::NET_FinalizeHandshake(CNode* pfrom)
+{
+    return true;
+}
+
+
+void mc_EnterpriseFeatures::NET_FreeNodeData(void *pNodeData)
+{
+    
+}
+
+bool mc_EnterpriseFeatures::NET_IsEncrypted(CNode* pfrom)
+{
+    return false;
+}
+
+bool mc_EnterpriseFeatures::NET_IsFinalized(CNode* pfrom)
+{
+    return true;    
+}
+
+
+int mc_EnterpriseFeatures::NET_ReadHeader(void *pNodeData,CNetMessage& msg,const char *pch,unsigned int nBytes)
+{
+    return -1;
+}
+
+void mc_EnterpriseFeatures::NET_ProcessMsgData(void *pNodeData,CNetMessage& msg)
+{
+    
+}
+
+bool mc_EnterpriseFeatures::NET_PushMsg(void *pNodeData,CDataStream& ssSend)
+{
+    return true;
+}
+
+int mc_EnterpriseFeatures::NET_StoreInCache(void *pNodeData,CNetMessage& msg,const char *pch,unsigned int nBytes)
+{
+    return 0;
+}
+
+bool mc_EnterpriseFeatures::NET_RestoreFromCache(CNode* pfrom)
+{
+    return true;
+}
+
+void mc_EnterpriseFeatures::NET_CheckConnections()
+{
+    
+}
+
+uint64_t mc_EnterpriseFeatures::NET_Services()
+{
+    return 0;
+}
+
+
 
 string mc_EnterpriseFeatures::ENT_Edition() 
 {
@@ -296,4 +426,8 @@ Value mc_EnterpriseFeatures::LIC_RPCTakeLicense(const Array& params)
     return Value::null;
 }
 
+Value mc_EnterpriseFeatures::LIC_RPCImportLicenseRequest(const Array& params)
+{
+    return Value::null;    
+}
 

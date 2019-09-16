@@ -17,6 +17,9 @@
 #define MC_EFT_STREAM_READ_RESTRICTED_DELIVER       0x0000000000004000
 #define MC_EFT_NETWORK_SIGNED_RECEIVE               0x0000000000010000
 #define MC_EFT_NETWORK_SIGNED_SEND                  0x0000000000020000
+#define MC_EFT_NETWORK_ENCRYPTED_CONNECTIONS        0x0000000000040000
+#define MC_EFT_FEEDS                                0x0000000000100000
+
 #define MC_EFT_ALL                                  0xFFFFFFFFFFFFFFFF
 
 
@@ -36,6 +39,7 @@ typedef struct mc_EnterpriseFeatures
     
     void Zero();
     void Destroy();
+    int  Prepare();              
     int  Initialize(              
             const char *name,                                                   // Chain name
             uint32_t mode);                                                     // Unused    
@@ -54,6 +58,18 @@ typedef struct mc_EnterpriseFeatures
     Value STR_RPCPurgeStreamItems(const Array& params);    
     Value STR_RPCPurgePublishedItems(const Array& params);
     int STR_RemoveDataFromFile(int fHan, uint32_t from, uint32_t size, uint32_t mode);
+    
+    Value FED_RPCCreateFeed(const Array& params);
+    Value FED_RPCSuspendFeed(const Array& params);
+    Value FED_RPCDeleteFeed(const Array& params);
+    Value FED_RPCRescanFeed(const Array& params);
+    Value FED_RPCAddFeedStreams(const Array& params);
+    Value FED_RPCRemoveFeedStreams(const Array& params);
+    Value FED_RPCAddFeedBlocks(const Array& params);
+    Value FED_RPCRemoveFeedBlocks(const Array& params);
+    Value FED_RPCPurgeFeedFile(const Array& params);
+    Value FED_RPCListFeeds(const Array& params);
+    int FED_EventTx(const CTransaction& tx,int block,CDiskTxPos* block_pos,uint32_t block_tx_index,uint256 block_hash,uint32_t block_timestamp);
     
     bool OFF_ProcessChunkRequest(unsigned char *ptrStart,unsigned char *ptrEnd,vector<unsigned char>* payload_response,vector<unsigned char>* payload_relay,
         map<uint160,int>& mapReadPermissionedStreams,string& strError);
@@ -74,6 +90,20 @@ typedef struct mc_EnterpriseFeatures
     int WLT_CompleteImport();
     int WLT_NoIndex(mc_TxEntity *entity);
     int WLT_NoRetrieve(mc_TxEntity *entity);
+    
+    bool NET_ProcessHandshakeData(CNode* pfrom, std::string sENTData,bool fIsVerackack);
+    std::vector<unsigned char> NET_PushHandshakeData(CNode* pfrom,bool fIsVerackack);
+    bool NET_FinalizeHandshake(CNode* pfrom);
+    void NET_FreeNodeData(void *pNodeData);
+    bool NET_IsEncrypted(CNode* pfrom);
+    bool NET_IsFinalized(CNode* pfrom);
+    int NET_ReadHeader(void *pNodeData,CNetMessage& msg,const char *pch,unsigned int nBytes); 
+    void NET_ProcessMsgData(void *pNodeData,CNetMessage& msg);
+    int NET_StoreInCache(void *pNodeData,CNetMessage& msg,const char *pch,unsigned int nBytes); 
+    bool NET_RestoreFromCache(CNode* pfrom); 
+    bool NET_PushMsg(void *pNodeData,CDataStream& ssSend);
+    void NET_CheckConnections();
+    uint64_t NET_Services();
     
     std::string ENT_Edition();
     int ENT_EditionNumeric();
@@ -98,6 +128,7 @@ typedef struct mc_EnterpriseFeatures
     Value LIC_RPCListLicenseRequests(const Array& params);
     Value LIC_RPCGetLicenseConfirmation(const Array& params);
     Value LIC_RPCTakeLicense(const Array& params);
+    Value LIC_RPCImportLicenseRequest(const Array& params);
 
     
 } mc_EnterpriseFeatures;

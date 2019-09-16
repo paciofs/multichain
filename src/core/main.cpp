@@ -1628,6 +1628,14 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
         
         
         int err=MC_ERR_NOERROR;
+        
+        err=pEF->FED_EventTx(tx,-1,NULL,-1,0,0);
+        if(err)
+        {
+            LogPrintf("ERROR: Cannot write tx %s to feeds, error %d\n",hash.ToString().c_str(),err);
+        }
+        
+        err=MC_ERR_NOERROR;
         if(wtx)
         {
             err=pwalletTxsMain->AddTx(NULL,*wtx,-1,NULL,-1,0);
@@ -2915,6 +2923,24 @@ bool static ConnectTip(CValidationState &state, CBlockIndex *pindexNew, CBlock *
     // Remove conflicting transactions from the mempool.
     list<CTransaction> txConflicted;
     if(fDebug)LogPrint("mcblockperf","mchn-block-perf: Removing block txs from mempool\n");
+
+    int err=MC_ERR_NOERROR;
+    if(pindexNew->nHeight)
+    {
+        CDiskTxPos pos1(pindexNew->GetBlockPos(), 80+GetSizeOfCompactSize(pblock->vtx.size()));
+        for (unsigned int i = 0; i < pblock->vtx.size(); i++)
+        {
+            const CTransaction &tx = pblock->vtx[i];
+            err=pEF->FED_EventTx(tx,pindexNew->nHeight,&pos1,i,pindexNew->GetBlockHash(),pblock->nTime);
+            if(err)
+            {
+                LogPrintf("ERROR: Cannot write tx %s to feeds in block, error %d\n",tx.GetHash().ToString().c_str(),err);
+            }
+            pos1.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
+        }
+    }
+
+    if(fDebug)LogPrint("mcblockperf","mchn-block-perf: Removing block txs from mempool\n");
     mempool.removeForBlock(pblock->vtx, pindexNew->nHeight, txConflicted);
     mempool.check(pcoinsTip);
 /* MCHN START */    
@@ -2924,7 +2950,7 @@ bool static ConnectTip(CValidationState &state, CBlockIndex *pindexNew, CBlock *
 
     if(fDebug)LogPrint("wallet","wtxs: Committing block %d\n",pindexNew->nHeight);
     
-    int err=MC_ERR_NOERROR;
+    err=MC_ERR_NOERROR;
     if(fDebug)LogPrint("mcblockperf","mchn-block-perf: Wallet, before commit           (%s)\n",(mc_gState->m_WalletMode & MC_WMD_TXS) ? pwalletTxsMain->Summary() : "");
     err=pwalletTxsMain->BeforeCommit(NULL);
     if(fDebug)LogPrint("mcblockperf","mchn-block-perf: Wallet, before commit completed (%s)\n",(mc_gState->m_WalletMode & MC_WMD_TXS) ? pwalletTxsMain->Summary() : "");
@@ -4782,10 +4808,17 @@ bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDis
     
     if(activate)
     {
-        pEF->LIC_VerifyLicenses(-1);
+        {
+            LOCK(cs_main);
+            pEF->LIC_VerifyLicenses(-1);
+        }
         if (!ActivateBestChain(state, pblock))
             return error("%s : ActivateBestChain failed", __func__);    
-        pEF->LIC_VerifyLicenses(chainActive.Height());
+        {
+            LOCK(cs_main);
+            pEF->LIC_VerifyLicenses(chainActive.Height());
+            pEF->NET_CheckConnections();
+        }
     }
 /* MCHN START */    
 /*
@@ -5718,6 +5751,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         else
             pfrom->fRelayTxes = true;
 
+        pfrom->nMultiChainServices=0;
+        if (!vRecv.empty())
+        {
+            vRecv >> pfrom->nMultiChainServices;
+        }
+        
         // Disconnect if we connected to ourself
         if (nNonce == nLocalHostNonce && nNonce > 1)
         {            
@@ -7025,6 +7064,10 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         if (pto->nVersion == 0)
             return true;
 
+        if(!pEF->NET_IsFinalized(pto))
+        {
+            return true;            
+        }
         //
         // Message: ping
         //

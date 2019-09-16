@@ -2360,7 +2360,6 @@ void mc_InitRPCHelpMap10()
             "      \"name\" : \"asset-name\"         (string, optional) Asset name\n"
             "      \"open\" : true|false           (boolean, optional, default false) True if follow-on issues are allowed\n"
             "      \"restrict\" : \"restrictions\"   (string, optional) Permission strings, comma delimited. Possible values: send,receive\n"
-            "      ,...\n"
             "    }\n"                                
             "3. quantity                         (numeric, required) The asset total amount in display units. eg. 1234.56\n"
             "4. smallest-unit                    (numeric, optional, default=1) Number of raw units in one displayed unit, eg 0.01 for cents\n"
@@ -2392,7 +2391,6 @@ void mc_InitRPCHelpMap10()
             "      \"name\" : \"asset-name\"         (string, optional) Asset name\n"
             "      \"open\" : true|false           (boolean, optional, default false) True if follow-on issues are allowed\n"
             "      \"restrict\" : \"restrictions\"   (string, optional) Permission strings, comma delimited. Possible values: send,receive\n"
-            "      ,...\n"
             "    }\n"                                
             "4. quantity                         (numeric, required) The asset total amount in display units. eg. 1234.56\n"
             "5. smallest-unit                    (numeric, optional, default=1) Number of raw units in one displayed unit, eg 0.01 for cents\n"
@@ -4902,7 +4900,7 @@ void mc_InitRPCHelpMap21()
             "1. \"license-request-hex\"                          (string, required) The license request hex string (output of getlicenserequest)\n"
             "2. confirmation-settings                          (integer, optional) Number of confirmations with default settings to return\n"
             "  or\n"
-            "2. confirmation-settings                          (object, optional) Confirmation settings. Possible fields:\n"
+            "2. confirmation-settings                          (object, optional) Confirmation settings for new request. Possible fields:\n"
             "                                                       count, integer, number of confirmations with these settings to return\n"
             "                                                       starttime, integer\n"
             "                                                       endtime,  integer\n"
@@ -4913,6 +4911,11 @@ void mc_InitRPCHelpMap21()
             "                                                       flags,  integer\n"
             "                                                       params,  a json object with custom parameters\n"
             "                                                       details,  a json object with custom details\n"
+            "  or\n"
+            "2. confirmation-settings                          (object, required) Confirmation settings for request extension. Possible fields:\n"
+            "                                                       extension, required, boolean, should be true\n"
+            "                                                       interval, integer, optional, default - like in previous license\n"
+            "                                                       delay, integer, optional, delay after last license end time, default 0  \n"
             "  or\n"
             "2. confirmation-settings                          (array, optional) Array of objects as described above, \"count\" field is ignored\n"
 
@@ -4978,7 +4981,28 @@ void mc_InitRPCHelpMap21()
             + HelpExampleRpc("takelicense", "\"license-7952-5b4c-fe80-1667\"")
       ));
    
+    mapHelpStrings.insert(std::make_pair("importlicenserequest",
+            "importlicenserequest \"license-request-hex\" \n"
+            "\nAvailable only in Enterprise Edition.\n"
+            "\nImports license request.\n"
+
+            "\nArguments:\n"
+            "1. \"license-request-hex\"                          (string, required) The license request hex string (output of getlicenserequest)\n"
+
+            "\nReturns array of license confirmations.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("importlicenserequest", "\"hexstring\"")
+            + HelpExampleRpc("importlicenserequest", "\"hexstring\"")
+      ));
    
+     mapHelpStrings.insert(std::make_pair("getinitstatus",
+            "getinitstatus\n"
+            "\nReturns information about initialization status of this node\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getinitstatus", "")
+            + HelpExampleRpc("getinitstatus", "")
+        ));
+  
     
     mapHelpStrings.insert(std::make_pair("AAAAAAA",
             ""
@@ -5056,6 +5080,11 @@ void mc_InitRPCAllowedWhenOffline()
     setAllowedWhenOffline.insert("walletlock");    
     setAllowedWhenOffline.insert("walletpassphrase");    
     setAllowedWhenOffline.insert("walletpassphrasechange");    
+    
+    setAllowedWhenOffline.insert("decodelicenserequest");    
+    setAllowedWhenOffline.insert("decodelicenseconfirmation");    
+    setAllowedWhenOffline.insert("getlicenseconfirmation");    
+    
 }
 
 void mc_InitRPCHelpMap()

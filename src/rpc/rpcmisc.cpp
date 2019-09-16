@@ -81,7 +81,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("port", GetListenPort()));    
     obj.push_back(Pair("setupblocks", mc_gState->m_NetworkParams->GetInt64Param("setupfirstblocks")));    
     
-    obj.push_back(Pair("nodeaddress", MultichainServerAddress() + strprintf(":%d",GetListenPort())));       
+    obj.push_back(Pair("nodeaddress", MultichainServerAddress(true) + strprintf(":%d",GetListenPort())));       
 
     obj.push_back(Pair("burnaddress", BurnAddress(Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS))));                
     obj.push_back(Pair("incomingpaused", (mc_gState->m_NodePausedState & MC_NPS_INCOMING) ? true : false));                
@@ -122,6 +122,36 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("relayfee",      ValueFromAmount(::minRelayTxFee.GetFeePerK())));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
     return obj;
+}
+
+Value getinitstatus(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)  
+        throw runtime_error("Help message not found\n");
+
+    Object obj;
+    
+    obj.push_back(Pair("version", mc_BuildDescription(mc_gState->GetNumericVersion())));
+    obj.push_back(Pair("nodeversion", mc_gState->GetNumericVersion()));
+
+    LOCK(cs_NodeStatus);
+    
+    if(pNodeStatus)
+    {
+        obj.push_back(Pair("initialized", false));        
+        obj.push_back(Pair("connecttime", (int64_t)(mc_TimeNowAsUInt()-pNodeStatus->tStartConnectTime)));
+        obj.push_back(Pair("connectaddress", pNodeStatus->sSeedIP));
+        obj.push_back(Pair("connectport", pNodeStatus->nSeedPort));
+        obj.push_back(Pair("handshakelocal", pNodeStatus->sAddress));
+        obj.push_back(Pair("lasterror", pNodeStatus->sLastError));
+    }
+    else
+    {
+        obj.push_back(Pair("initialized", (mc_gState->m_NetworkParams->m_Status == MC_PRM_STATUS_VALID) ));        
+    }
+    
+    return obj;
+    
 }
 
 #ifdef ENABLE_WALLET
