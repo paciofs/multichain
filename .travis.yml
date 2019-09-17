@@ -1,5 +1,5 @@
 os: osx
-osx_image: xcode10.1
+osx_image: xcode10.2
 
 # do not build tagged commits
 # this way we avoid rebuilding upon successful deployment (see below)
